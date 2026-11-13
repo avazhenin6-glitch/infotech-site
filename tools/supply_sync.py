@@ -258,6 +258,7 @@ def parse_product(page_html, url, overrides=None):
                 if n:
                     crumbs.append(html.unescape(str(n)).strip())
     name = sku = desc = vendor = None
+    avail_raw = None
     price = None
     stock = None
     images = []
@@ -282,6 +283,7 @@ def parse_product(page_html, url, overrides=None):
             price = price or _num(o.get('price') or o.get('lowPrice'))
             av = str(o.get('availability') or '')
             if av:
+                avail_raw = 'json-ld: ' + av
                 stock = 1 if re.search(r'InStock|LimitedAvailability|OnlineOnly', av) else 0
     else:
         mpn = None
@@ -290,6 +292,7 @@ def parse_product(page_html, url, overrides=None):
     sku = sku or ip.get('sku') or ip.get('mpn') or ip.get('productID')
     price = price or _num(ip.get('price'))
     if stock is None and ip.get('availability'):
+        avail_raw = 'itemprop: ' + ip['availability']
         stock = 1 if re.search(r'InStock', ip['availability']) else 0
     if not images:
         if ip.get('image'):
@@ -301,11 +304,16 @@ def parse_product(page_html, url, overrides=None):
     if price is None and ov.get('price_regex'):
         m = re.search(ov['price_regex'], page_html, re.S | re.I)
         price = _num(m.group(1)) if m else None
-    if stock is None:
-        if ov.get('stock_out_regex') and re.search(ov['stock_out_regex'], text, re.I):
-            stock = 0
-        elif ov.get('stock_in_regex') and re.search(ov['stock_in_regex'], text, re.I):
-            stock = 1
+    if stock is None:   # запасной вариант — только по фрагменту страницы, заданному в настройках
+        scope = text
+        if ov.get('stock_scope_regex'):
+            m = re.search(ov['stock_scope_regex'], page_html, re.S | re.I)
+            scope = re.sub(r'<[^>]+>', ' ', m.group(0)) if m else ''
+        mo = ov.get('stock_out_regex') and re.search(ov['stock_out_regex'], scope, re.I)
+        mi = ov.get('stock_in_regex') and re.search(ov['stock_in_regex'], scope, re.I)
+        if mo or mi:
+            avail_raw = 'текст: ' + (mo or mi).group(0)
+            stock = 0 if mo else 1
     if not sku and ov.get('sku_regex'):
         m = re.search(ov['sku_regex'], page_html, re.S | re.I)
         sku = m.group(1).strip() if m else None
@@ -317,6 +325,20 @@ def parse_product(page_html, url, overrides=None):
         specs = [[r[0].rstrip(':'), r[1]] for r in best if len(r) == 2 and r[0] and r[1]]
     if len(p.dl) > len(specs):
         specs = [[k.rstrip(':'), v] for k, v in p.dl if k and v]
+    junk_v = re.compile(r'^(0|0[.,]0|0 - 0|0 x 0 x 0|-|—)$')
+    junk_k = re.compile(r'b2b|^выводить|габариты упаковки|^описание$', re.I)
+    seen_k, clean_specs = set(), []
+    for k, v in specs:
+        key = k.strip().lower()
+        if key in seen_k or junk_v.match(v.strip()) or junk_k.search(k):
+            continue
+        seen_k.add(key)
+        clean_specs.append([k.strip(), v.strip()])
+    specs = clean_specs
+    if not mpn:
+        for k, v in specs:
+            if re.search(r'partnumber|артикул производителя', k, re.I):
+                mpn = v; break
     if name and crumbs and crumbs[-1].strip().lower() == str(name).strip().lower():
         crumbs = crumbs[:-1]
     if crumbs and re.match(r'(главная|home|каталог)$', crumbs[0], re.I):
@@ -335,6 +357,7 @@ def parse_product(page_html, url, overrides=None):
         'specs': specs[:80],
         'url': url,
         '_has_product_markup': bool(prod or ip.get('price')),
+        '_availability_raw': avail_raw,
     }
 
 
@@ -430,6 +453,7 @@ def src_site(sup, limit, fetch, probe=False, probe_url=None):
         o = parse_product(page, u, sup.get('overrides'))
         if probe:
             report['samples'].append({k: (v if k != 'description' else v[:200]) for k, v in o.items()})
+        o.pop('_availability_raw', None) if not probe else None
         if not o.pop('_has_product_markup') or not o['name'] or not o['price_in']:
             continue
         if inc and not any(r.search(o['category']) for r in inc):
@@ -555,12 +579,12 @@ def norm_pn(s):
 
 
 def our_category(cfg, supplier_category, name):
-    hay = f'{supplier_category} {name}'
-    for cat, rule in cfg['categories'].items():
-        if cat.startswith('_'):
-            continue
-        if re.search(rule['match'], hay, re.I):
-            return cat, rule['prefix']
+    rules = [(c, r) for c, r in cfg['categories'].items() if not c.startswith('_')]
+    last = (supplier_category or '').split(' / ')[-1]
+    for hay in (last, f'{supplier_category} {name}'):      # сначала последний раздел поставщика
+        for cat, rule in rules:
+            if rule['match'] != '.*' and hay and re.search(rule['match'], hay, re.I):
+                return cat, rule['prefix']
     return 'Прочее', 'OTH'
 
 
@@ -671,6 +695,7 @@ def run(args, cfg):
         for o in offers:
             if not o.get('price_in') or not o.get('name'):
                 continue
+            o.pop('_availability_raw', None)
             seen.add(o['supplier_code'])
             row = c.execute('SELECT sku FROM offers WHERE supplier=? AND supplier_code=?', (sup['id'], o['supplier_code'])).fetchone()
             sku = row['sku'] if row else None
