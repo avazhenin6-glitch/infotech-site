@@ -533,3 +533,14 @@ mark{background:var(--sky);color:inherit;padding:0 1px}
 .related{background:#fff}
 .hubgrp:nth-child(even){background:#fff}
 @media (max-width:1020px){.phero-grid{grid-template-columns:1fr}.phero-ic{display:none}.dirs{grid-template-columns:1fr}}
+/* дата-центр */
+.dcgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.dcgrid .card{--c:20px;background:var(--ghost);border:1px solid var(--sky);padding:24px}
+.dcgrid .card b{display:block;font-size:24px;font-weight:600;color:var(--slate);line-height:1.2}
+.dcgrid h4{font-size:16px;margin:10px 0 6px}
+.dcgrid p{font-size:14px;color:var(--muted)}
+@media(max-width:900px){.dcgrid{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.dcgrid{grid-template-columns:1fr}}
+.tmig{font-size:13px;margin:-4px 0 12px;color:var(--slate)}
+.tmig.paid{color:var(--muted)}
+.vatnote{font-size:12.5px;color:var(--muted);margin-top:14px}

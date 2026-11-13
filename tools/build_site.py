@@ -170,7 +170,7 @@ home_dirs = f'''<section id="napravleniya" style="background:#fff">
   </div>
 </section>
 '''
-home = part('hero') + part('bus1') + part('about') + home_dirs + part('compare') + part('calc') + part('bus2') + part('steps')
+home = part('hero') + part('bus1') + part('about') + home_dirs + part('dc') + part('compare') + part('calc') + part('bus2') + part('steps')
 built.append(page('index.html', 'ИНФОТЕХ — аренда серверов для 1С, программы 1С и IT-инфраструктура',
                   'Аренда серверов для 1С от 5 900 ₽/мес, продажа программ и лицензий 1С с электронной поставкой, внедрение, сопровождение и поставка оборудования. ООО «ИНФОТЕХ», Санкт-Петербург.',
                   home, nav='about'))
@@ -216,6 +216,7 @@ for s in SERVICES:
     for b in s.get('blocks', []):
         if b == 'rent': body += part('rent')
         elif b == 'calc': body += part('calc')
+        elif b == 'dc': body += part('dc')
         elif b == 'support': body += part('support')
         elif b == 'its': body += part('its')
         elif b.startswith('shop:'): body += shop_block(b.split(':', 1)[1], R)

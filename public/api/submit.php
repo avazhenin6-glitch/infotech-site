@@ -99,7 +99,7 @@ $pdo->prepare('UPDATE orders SET number=? WHERE id=?')->execute([$number, $id]);
 $lines = array_map(fn($i) => "• {$i['name']} (арт. {$i['code']}) — {$i['qty']} шт × "
     . ($i['cur'] === 'USD' ? money_usd($i['price']) : money_rub($i['price'])) . ($i['e'] === 1 ? ' [e-mail]' : ($i['e'] === 2 ? ' [услуга]' : '')), $items);
 $total = money_rub($rub) . ($usd ? ' + ' . money_usd($usd) . ' (по курсу ЦБ)' : '');
-$body = implode("\n", $lines) . "\n\nИтого: {$total}\nПоставка: {$delivery}\nОплата: {$payment}";
+$body = implode("\n", $lines) . "\n\nИтого: {$total} (без НДС, УСН)\nПоставка: {$delivery}\nОплата: {$payment}";
 $buyer = "Покупатель: {$name}\nE-mail: {$email}\nТелефон: {$phone}" . ($inn ? "\nИНН: {$inn}" : '') . ($company ? "\nОрганизация: {$company}" : '') . ($comment ? "\nКомментарий: {$comment}" : '');
 
 $managerText = "Новый заказ {$number}\n\n{$body}\n\n{$buyer}\n\n" . cfg('site_url') . "/admin/?id={$id}";
