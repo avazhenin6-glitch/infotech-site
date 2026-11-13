@@ -47,7 +47,7 @@ git reset -q --hard origin/main
 if ! python3 tools/build_site.py >/tmp/infotech-build.log 2>&1; then
   echo "error build \$(date '+%F %T') \$(tail -1 /tmp/infotech-build.log)" > "\$STATUS"; git reset -q --hard origin/main; exit 1
 fi
-if rsync -a --delete --exclude build.txt public/ "$ROOT/public/" \\
+if rsync -a --delete --exclude build.txt --exclude supply.js --exclude tovar/ --exclude uploads/ --exclude sitemap-products.xml public/ "$ROOT/public/" \\
    && rsync -a --exclude config.php --exclude 'data/' app/ "$ROOT/app/" \\
    && rsync -a tools/ "$ROOT/tools/"; then
   find "$ROOT/public" -type d -exec chmod 755 {} + ; find "$ROOT/public" -type f -exec chmod 644 {} +

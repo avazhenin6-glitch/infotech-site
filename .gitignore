@@ -3,3 +3,7 @@ app/data/*
 !app/data/.keep
 *.sqlite
 *.prev.js
+public/tovar/
+public/uploads/
+public/sitemap-products.xml
+__pycache__/

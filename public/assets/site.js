@@ -5,14 +5,19 @@ const $=id=>document.getElementById(id);
 const fmt=n=>Math.round(n).toLocaleString('ru-RU');
 const MONTHS=m=>m==1?'1 месяц':(m<5?m+' месяца':m+' месяцев');
 const CAT=window.CATALOG||{cats:[],items:[],date:''};
-const ITEMS=CAT.items.map(a=>({code:a[0],n:a[1],c:a[2],s:a[3],price:a[4],cur:a[5],e:a[6],lc:(a[1]+' '+a[0]).toLowerCase().replace(/ё/g,'е')}));
+/* оборудование от дистрибьюторов (supply.js): [sku, name, sub, price, inStock, img] */
+const SUP=window.SUPPLY;
+if(SUP&&SUP.items&&SUP.items.length){const ci=CAT.cats.length;CAT.cats.push({k:'supply',n:'Компьютеры и комплектующие',s:SUP.cats});SUP.items.forEach(a=>CAT.items.push([a[0],a[1],ci,a[2],a[3],'',0,a[4],a[5]]))}
+const ITEMS=CAT.items.map(a=>({code:a[0],n:a[1],c:a[2],s:a[3],price:a[4],cur:a[5],e:a[6],st:a[7],img:a[8],lc:(a[1]+' '+a[0]).toLowerCase().replace(/ё/g,'е')}));
+const ISUP=p=>p.st!==undefined;
+const PURL=p=>ROOT+'tovar/'+encodeURIComponent(p.code)+'/';
 const BY={};ITEMS.forEach(p=>BY[p.code]=p);
 const P=code=>BY[code];
 const rub=n=>Math.round(n).toLocaleString('ru-RU')+' ₽';
 const usd=n=>'$'+n.toLocaleString('en-US',{maximumFractionDigits:2});
 const money=(p,q=1)=>p.cur==='$'?usd(p.price*q):rub(p.price*q);
 const KIND=p=>p.e===1?'Электронная поставка':p.e===2?'Услуга ИНФОТЕХ':'Физическая поставка';
-const KIND_TAG=p=>p.e===1?'<span class="tag e cut">Электронная поставка</span>':p.e===2?'<span class="tag cut" style="background:var(--slate);color:var(--ghost)">Услуга ИНФОТЕХ</span>':'<span class="tag cut">Физическая поставка</span>';
+const KIND_TAG=p=>ISUP(p)?(p.st?'<span class="tag ok cut">В наличии</span>':'<span class="tag cut">Под заказ</span>'):p.e===1?'<span class="tag e cut">Электронная поставка</span>':p.e===2?'<span class="tag cut" style="background:var(--slate);color:var(--ghost)">Услуга ИНФОТЕХ</span>':'<span class="tag cut">Физическая поставка</span>';
 const esc=t=>t.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const SHOP=!!document.getElementById('shop');
 
@@ -263,10 +268,10 @@ function renderShop(focus){if(!SHOP)return;
   } else $('subchips').innerHTML='';
   $('found').textContent=`Найдено: ${L.length.toLocaleString('ru-RU')}`+(st.e?' · только электронная поставка':'');
   const show=L.slice(0,st.page*PAGE);
-  $('plist').innerHTML=show.length?show.map(p=>`<div class="prow cut">
-    <div><h4>${st.q?hl(p.n,st.q):esc(p.n)}</h4><div class="meta"><span>Артикул: ${esc(p.code)}</span>${KIND_TAG(p)}${st.c<0||st.q?`<span>${CAT.cats[p.c].s[p.s]}</span>`:''}</div></div>
+  $('plist').innerHTML=show.length?show.map(p=>`<div class="prow cut${ISUP(p)?' sup':''}">
+    <div class="pmain">${ISUP(p)?`<a class="pthumb" href="${PURL(p)}" tabindex="-1">${p.img?`<img src="${esc(p.img)}" alt="" loading="lazy">`:''}</a>`:''}<div><h4>${ISUP(p)?`<a href="${PURL(p)}">${st.q?hl(p.n,st.q):esc(p.n)}</a>`:(st.q?hl(p.n,st.q):esc(p.n))}</h4><div class="meta"><span>Артикул: ${esc(p.code)}</span>${KIND_TAG(p)}${st.c<0||st.q?`<span>${CAT.cats[p.c].s[p.s]}</span>`:''}</div></div></div>
     <div class="pr">${money(p)}${p.cur==='$'?'<span class="usd">оплата в ₽ по курсу ЦБ</span>':''}</div>
-    ${cart[p.code]?qtyCtl(p.code,cart[p.code],'pq'):`<button class="btn btn-primary cut" data-add="${esc(p.code)}">В корзину</button>`}
+    ${ISUP(p)&&!p.st?`<a class="btn btn-back cut" href="${PURL(p)}">Узнать срок</a>`:cart[p.code]?qtyCtl(p.code,cart[p.code],'pq'):`<button class="btn btn-primary cut" data-add="${esc(p.code)}">В корзину</button>`}
   </div>`).join(''):'<div class="empty">Ничего не найдено — попробуйте другой запрос или <a href="#contact" style="color:var(--slate);border-bottom:1px solid">напишите нам</a>.</div>';
   $('moreBtn').parentElement.style.display=L.length>show.length?'flex':'none';
   $('moreBtn').textContent=`Показать ещё (осталось ${L.length-show.length})`;
@@ -297,13 +302,15 @@ function bindQty(root){
   root.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>setQty(b.dataset.del,0));
 }
 let toastT;
-function addToCart(id){
-  cart[id]=(cart[id]||0)+1;saveCart();updateCart();renderShop();
+function addToCart(id,n){
+  const pp=P(id);if(!pp)return;
+  if(ISUP(pp)&&!pp.st){location.href=PURL(pp);return}   // под заказ — без оформления (регламент)
+  cart[id]=(cart[id]||0)+(n||1);saveCart();updateCart();renderShop();
   $('toastName').textContent=P(id).n;$('toast').classList.add('on');
   clearTimeout(toastT);toastT=setTimeout(()=>$('toast').classList.remove('on'),4500);
 }
 function updateCart(){
-  for(const id in cart)if(!P(id)||cart[id]<1)delete cart[id];
+  for(const id in cart)if(!P(id)||cart[id]<1||(ISUP(P(id))&&!P(id).st))delete cart[id];
   const t=cartTotals();
   $('cartCount').textContent=t.count;$('cartCount').classList.toggle('on',t.count>0);
   const ids=Object.keys(cart);
@@ -616,3 +623,13 @@ if(document.querySelector('.jtoc')&&'IntersectionObserver' in window){
   const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)links.forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+e.target.id))}),{rootMargin:'-90px 0px -70% 0px'});
   document.querySelectorAll('.journal-article-content h2[id]').forEach(h=>io.observe(h));
 }
+
+/* ================= Страница товара (оборудование от дистрибьюторов) ================= */
+document.querySelectorAll('[data-buy]').forEach(b=>{
+  const box=b.closest('.pbuy'),inp=box.querySelector('[data-pq]');
+  const q=()=>Math.max(1,Math.min(9999,parseInt(inp.value)||1));
+  box.querySelector('[data-pinc]').onclick=()=>{inp.value=q()+1};
+  box.querySelector('[data-pdec]').onclick=()=>{inp.value=Math.max(1,q()-1)};
+  inp.onchange=()=>{inp.value=q()};
+  b.onclick=()=>{if(!P(b.dataset.buy)){b.textContent='Обновите страницу';return}addToCart(b.dataset.buy,q());b.textContent='Добавлено в корзину';setTimeout(()=>b.textContent='В корзину',2500)};
+});

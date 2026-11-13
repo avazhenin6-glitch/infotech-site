@@ -1,0 +1,137 @@
+{
+  "_help": "Каталог оборудования от дистрибьюторов. Только официальные B2B-каналы (API, YML/XML, CSV, Excel) — см. регламент в CLAUDE.md. Ключи доступа к API хранятся на сервере в app/data/supply-secrets.json, не здесь.",
+  "suppliers": [
+    {
+      "id": "polus",
+      "name": "Polus — ВРЕМЕННО, открытый сайт (до подключения API, не дольше недели)",
+      "enabled": true,
+      "type": "site",
+      "source": "https://polus.ru",
+      "limit": 100,
+      "delay_sec": [
+        2,
+        4
+      ],
+      "_note": "Исключение из регламента на время теста: robots.txt, честный User-Agent, пауза 2–4 с, остановка при отказе. После получения API — enabled:false и удалить.",
+      "sitemaps": [],
+      "start_urls": [],
+      "product_url_regex": "",
+      "pagination_regex": "",
+      "include_categories": [],
+      "overrides": {
+        "stock_in_regex": "в наличии|есть на складе",
+        "stock_out_regex": "нет в наличии|под заказ|ожидается поступление"
+      },
+      "until": "2026-11-20"
+    },
+    {
+      "id": "example-yml",
+      "name": "Пример: YML-фид дистрибьютора",
+      "enabled": false,
+      "type": "yml",
+      "source": "https://example.com/partner/feed.xml",
+      "auth": {
+        "header": "Authorization",
+        "secret": "example-yml"
+      },
+      "stock_param": "Остаток"
+    },
+    {
+      "id": "example-csv",
+      "name": "Пример: CSV/Excel-прайс",
+      "enabled": false,
+      "type": "csv",
+      "source": "/var/www/pbk.spb.ru/app/data/prices/example.csv",
+      "delimiter": ";",
+      "encoding": "utf-8-sig",
+      "columns": {
+        "supplier_code": "Код",
+        "part_number": "PartNumber",
+        "vendor": "Производитель",
+        "name": "Наименование",
+        "category": "Категория",
+        "price": "Цена",
+        "stock": "Остаток",
+        "image": "Изображение",
+        "description": "Описание"
+      }
+    }
+  ],
+  "categories": {
+    "_help": "Наши разделы витрины: префикс SKU и правила, по которым категории поставщиков попадают в раздел (регулярные выражения, без учёта регистра). Порядок важен: срабатывает первое совпадение.",
+    "Процессоры": {
+      "prefix": "CPU",
+      "match": "процессор|cpu"
+    },
+    "Материнские платы": {
+      "prefix": "MBD",
+      "match": "материнск|motherboard"
+    },
+    "Оперативная память": {
+      "prefix": "RAM",
+      "match": "оперативн|памят[ьи] dimm|ddr|модул[ьи] памяти"
+    },
+    "SSD-накопители": {
+      "prefix": "SSD",
+      "match": "ssd|твердотельн"
+    },
+    "Жёсткие диски": {
+      "prefix": "HDD",
+      "match": "жестк|жёстк|hdd"
+    },
+    "Видеокарты": {
+      "prefix": "GPU",
+      "match": "видеокарт|graphics"
+    },
+    "Блоки питания": {
+      "prefix": "PSU",
+      "match": "блок[иа]? питания|psu"
+    },
+    "Корпуса": {
+      "prefix": "CAS",
+      "match": "корпус"
+    },
+    "Охлаждение": {
+      "prefix": "CLR",
+      "match": "кулер|охлажд|вентилятор"
+    },
+    "Серверы и СХД": {
+      "prefix": "SRV",
+      "match": "сервер|схд|server|storage"
+    },
+    "Сетевое оборудование": {
+      "prefix": "NET",
+      "match": "коммутатор|маршрутизатор|сетев|switch|router|wi-?fi"
+    },
+    "ИБП": {
+      "prefix": "UPS",
+      "match": "ибп|бесперебойн|ups"
+    },
+    "Мониторы": {
+      "prefix": "MON",
+      "match": "монитор"
+    },
+    "Периферия": {
+      "prefix": "PER",
+      "match": "клавиатур|мыш|гарнитур|колонк|веб-?камер|периферия"
+    },
+    "Прочее": {
+      "prefix": "OTH",
+      "match": ".*"
+    }
+  },
+  "markup": {
+    "_help": "mode: random_fixed — наценка выбирается случайно из [min, max] один раз при появлении товара и больше не меняется; fixed — default (или by_category) для всех.",
+    "mode": "random_fixed",
+    "min": 3.0,
+    "max": 5.0,
+    "default": 4.0,
+    "by_category": {}
+  },
+  "round_to": 10,
+  "out_of_stock": "preorder",
+  "max_images": 4,
+  "image_max_mb": 5,
+  "min_coverage": 0.6,
+  "request_delay_sec": 1.0
+}

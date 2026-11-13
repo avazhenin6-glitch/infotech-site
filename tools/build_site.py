@@ -70,6 +70,7 @@ def page(path, title, desc, body, nav='', service='', contact_title='Обсуд�
 {part('overlays')}
 <script>window.ROOT={json.dumps(R)};</script>
 <script src="{R}catalog.js?v={ver('catalog.js')}"></script>
+<script src="{R}supply.js"></script>
 <script src="{R}assets/site.js?v={ver('assets/site.js')}"></script>
 </body>
 </html>
@@ -355,11 +356,15 @@ json.dump({"generated": TODAY, "rubrics": RUBRICS, "posts": [
     {k: p[k] for k in ('slug', 'title', 'rubric', 'date', 'lead', 'read', 'url')} | {"rubric_name": RUBRICS[p['rubric']]} for p in POSTS]},
     open(os.path.join(PUB, 'journal-posts.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
 
+# ---------- шаблон страницы товара (заполняет tools/supply_sync.py на сервере) ----------
+page('assets/tovar-template.html', '__PRODUCT_TITLE__', '__PRODUCT_DESC__', '__PRODUCT_BODY__', nav='shop',
+     service='__PRODUCT_SERVICE__', contact_title='Вопрос по товару', head='__PRODUCT_LD__', og='product')
+
 # ---------- sitemap, robots ----------
 today = datetime.date.today().isoformat()
 urls = [p.replace('index.html', '') for p in built] + ['privacy.html']
 open(os.path.join(PUB, 'sitemap.xml'), 'w', encoding='utf-8').write(
     '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
     ''.join(f'  <url><loc>{DOMAIN}/{u}</loc><lastmod>{today}</lastmod></url>\n' for u in urls) + '</urlset>\n')
-open(os.path.join(PUB, 'robots.txt'), 'w').write(f'User-agent: *\nDisallow: /admin/\nDisallow: /api/\nSitemap: {DOMAIN}/sitemap.xml\n')
+open(os.path.join(PUB, 'robots.txt'), 'w').write(f'User-agent: *\nDisallow: /admin/\nDisallow: /api/\nSitemap: {DOMAIN}/sitemap.xml\nSitemap: {DOMAIN}/sitemap-products.xml\n')
 print('Собрано страниц:', len(built))

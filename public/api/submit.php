@@ -59,6 +59,8 @@ foreach (array_slice((array)($in['items'] ?? []), 0, 200) as $row) {
     $code = (string)($row['code'] ?? ''); $qty = (int)($row['qty'] ?? 0);
     if (!isset($cat[$code]) || $qty < 1 || $qty > 9999) continue;
     $p = $cat[$code];
+    if (isset($p['in_stock']) && !$p['in_stock'])   // регламент: на отсутствующий товар заказ не оформляется
+        json_out(['ok' => false, 'error' => "«{$p['name']}» сейчас под заказ — удалите его из корзины и оставьте заявку, менеджер уточнит срок поставки."], 422);
     $sum = $p['price'] * $qty;
     if ($p['cur'] === 'USD') $usd += $sum; else $rub += $sum;
     if ($p['e'] === 1) $eCount += $qty; elseif ($p['e'] === 2) $sCount += $qty; else $pCount += $qty;

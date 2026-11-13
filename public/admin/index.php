@@ -41,6 +41,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header("Location: $self?id=$id&saved=1"); exit;
 }
 
+/* каталог оборудования: статус и ручной запуск (tools/supply_sync.py, таймер supply-sync) */
+if (isset($_GET['supply'])) {
+    $flag = APP_DIR . '/data/supply-run.flag';
+    $msg = '';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        if (!hash_equals($csrf, (string)($_POST['csrf'] ?? ''))) { http_response_code(403); exit('csrf'); }
+        file_put_contents($flag, date('c')); $msg = '<p class="ok">Запуск поставлен в очередь — обычно начинается в течение минуты.</p>';
+    }
+    $st = json_decode((string)@file_get_contents(APP_DIR . '/data/supply-status.json'), true);
+    $log = @file(APP_DIR . '/data/parser_sync.log') ?: [];
+    $body = '<p><a href="' . $self . '">← Заказы</a></p><div class="card"><h2>Каталог оборудования</h2>' . $msg .
+        ($st ? '<p>Последний запуск: <b>' . h($st['started']) . '</b> → ' . h($st['finished']) . ' · статус: <b>' . h($st['status']) . '</b><br>На витрине: ' . (int)$st['shown'] .
+               ' (в наличии ' . (int)$st['in_stock'] . '), страниц товаров: ' . (int)$st['pages'] . '</p>' .
+               ($st['errors'] ? '<p class="err">' . implode('<br>', array_map('h', $st['errors'])) . '</p>' : '') : '<p>Синхронизация ещё не запускалась.</p>') .
+        (is_file($flag) ? '<p>Запуск ожидает очереди…</p>' : '<form method="post"><input type="hidden" name="csrf" value="' . $csrf . '"><button>Запустить обновление сейчас</button></form>') .
+        '</div><div class="card"><h3>Журнал (последние строки)</h3><pre style="white-space:pre-wrap;font-size:12px">' . h(implode('', array_slice($log, -60))) . '</pre></div>';
+    page('Каталог оборудования', $body);
+}
+
 /* выгрузка CSV */
 if (isset($_GET['csv'])) {
     header('Content-Type: text/csv; charset=utf-8');
@@ -93,7 +112,7 @@ foreach ($st as $r) {
 $sel = fn($name, $cur, $opts) => '<select name="' . $name . '" onchange="this.form.submit()">' . implode('', array_map(fn($k, $v) => '<option value="' . h((string)$k) . '"' . ((string)$k === $cur ? ' selected' : '') . '>' . h($v) . '</option>', array_keys($opts), $opts)) . '</select>';
 $html = '<form class="filters"><input name="q" value="' . h($q) . '" placeholder="Поиск: номер, имя, телефон, ИНН">' .
     $sel('t', $t, ['' => 'Заказы и заявки', 'order' => 'Только заказы', 'lead' => 'Только заявки']) .
-    $sel('s', $s, ['' => 'Все статусы'] + array_combine(STATUSES, STATUSES)) . '<button>Найти</button><a class="btn2" href="?csv=1">Выгрузить CSV</a></form>' .
+    $sel('s', $s, ['' => 'Все статусы'] + array_combine(STATUSES, STATUSES)) . '<button>Найти</button><a class="btn2" href="?csv=1">Выгрузить CSV</a><a class="btn2" href="?supply=1">Каталог оборудования</a></form>' .
     '<div class="card"><table><tr><th>Номер</th><th>Тип</th><th>Дата</th><th>Клиент</th><th>Контакты</th><th class="r">Сумма</th><th>Статус</th></tr>' . ($rows ?: '<tr><td colspan="7">Пока пусто</td></tr>') . '</table></div>';
 page('Заказы и заявки', $html);
 

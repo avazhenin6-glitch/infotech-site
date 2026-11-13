@@ -123,6 +123,8 @@ server {
     location = /index.html { add_header Cache-Control "no-cache"; }
     location = /catalog.js { add_header Cache-Control "no-cache"; }
     location /assets/ { expires 30d; access_log off; }
+    location = /supply.js { add_header Cache-Control "no-cache"; }
+    location ^~ /uploads/ { expires 7d; access_log off; location ~ \\.(php|html?)\$ { return 404; } }
     location = /journal-posts.json { add_header Cache-Control "no-cache"; }
     location ~* \.(png|jpg|jpeg|svg|webp|ico|woff2?)\$ { expires 7d; access_log off; }
 

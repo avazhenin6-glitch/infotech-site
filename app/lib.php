@@ -59,6 +59,16 @@ function catalog(): array {
             'cur' => $cur === '$' ? 'USD' : 'RUB', 'e' => (int)$e,
             'cat' => $data['cats'][$c]['n'] ?? '', 'sub' => $data['cats'][$c]['s'][$s] ?? ''];
     }
+    // оборудование от дистрибьюторов (tools/supply_sync.py): [sku, name, catIdx, price, inStock, img]
+    $sraw = @file_get_contents(PUBLIC_DIR . '/supply.js');
+    if ($sraw && ($p = strpos($sraw, 'window.SUPPLY=')) !== false) {
+        $sd = json_decode(rtrim(substr($sraw, $p + strlen('window.SUPPLY=')), ";\n\r "), true);
+        foreach (($sd['items'] ?? []) as $it) {
+            [$code, $name, $c, $price, $inStock] = $it;
+            $map[(string)$code] = ['code' => (string)$code, 'name' => $name, 'price' => (float)$price, 'cur' => 'RUB', 'e' => 0,
+                'cat' => 'Компьютеры и комплектующие', 'sub' => $sd['cats'][$c] ?? '', 'in_stock' => (int)$inStock];
+        }
+    }
     return $map;
 }
 
