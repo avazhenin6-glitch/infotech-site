@@ -378,10 +378,10 @@ def src_site(sup, limit, fetch, probe=False, probe_url=None):
             except Exception as e:
                 log(f'  sitemap {m}: {e}')
                 continue
-            for el in root.iter():
-                if el.tag.endswith('loc') and el.text:
-                    u = el.text.strip()
-                    (maps if root.tag.endswith('sitemapindex') else out).append(u)
+            for el in root:                      # только <url><loc> / <sitemap><loc>, без <image:loc>
+                loc = next((ch for ch in el if ch.tag.split('}')[-1] == 'loc'), None)
+                if loc is not None and loc.text:
+                    (maps if root.tag.endswith('sitemapindex') else out).append(loc.text.strip())
         report['sitemaps_read'] = sorted(seen_maps)[:40]
         report['urls_in_sitemaps'] = len(out)
         step = max(1, len(out) // 30)

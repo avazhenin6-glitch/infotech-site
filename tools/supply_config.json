@@ -15,7 +15,7 @@
       "_note": "Исключение из регламента на время теста: robots.txt, честный User-Agent, пауза 2–4 с, остановка при отказе. После получения API — enabled:false и удалить.",
       "sitemaps": [],
       "start_urls": [],
-      "product_url_regex": "",
+      "product_url_regex": "^https://polus\\.ru/[a-z0-9-]*(protsessor|materinsk|operativn|nakopiteli-ssd|zhestkie-diski|videokart|bloki-pitaniya|blok-pitaniya|korpus|kuler|ohlazhd|okhlazhd|server|kommutator|marshrutizator|istochniki-bespereboynogo|ibp|monitory)[a-z0-9-]*/[^/]+/[^/?#]+-\\d{5,}$",
       "pagination_regex": "",
       "include_categories": [],
       "overrides": {
