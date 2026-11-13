@@ -59,12 +59,12 @@ foreach (array_slice((array)($in['items'] ?? []), 0, 200) as $row) {
     $code = (string)($row['code'] ?? ''); $qty = (int)($row['qty'] ?? 0);
     if (!isset($cat[$code]) || $qty < 1 || $qty > 9999) continue;
     $p = $cat[$code];
-    if (isset($p['in_stock']) && !$p['in_stock'])   // регламент: на отсутствующий товар заказ не оформляется
-        json_out(['ok' => false, 'error' => "«{$p['name']}» сейчас под заказ — удалите его из корзины и оставьте заявку, менеджер уточнит срок поставки."], 422);
+    if (isset($p['in_stock']) && $p['in_stock'] === 0)   // регламент: на отсутствующий товар заказ не оформляется (2 = под заказ — можно)
+        json_out(['ok' => false, 'error' => "«{$p['name']}» сейчас нет в наличии у поставщиков — удалите его из корзины и оставьте заявку, менеджер подберёт аналог."], 422);
     $sum = $p['price'] * $qty;
     if ($p['cur'] === 'USD') $usd += $sum; else $rub += $sum;
     if ($p['e'] === 1) $eCount += $qty; elseif ($p['e'] === 2) $sCount += $qty; else $pCount += $qty;
-    $items[] = ['code' => $code, 'name' => $p['name'], 'qty' => $qty, 'price' => $p['price'], 'cur' => $p['cur'], 'sum' => $sum, 'e' => $p['e']];
+    $items[] = ['code' => $code, 'name' => $p['name'], 'qty' => $qty, 'price' => $p['price'], 'cur' => $p['cur'], 'sum' => $sum, 'e' => $p['e'], 'pre' => ($p['in_stock'] ?? 1) === 2];
 }
 if (!$items) json_out(['ok' => false, 'error' => 'Корзина пуста или товары устарели. Обновите страницу.'], 422);
 
@@ -99,11 +99,11 @@ $number = 'ИТ-' . date('ymd') . '-' . $id;
 $pdo->prepare('UPDATE orders SET number=? WHERE id=?')->execute([$number, $id]);
 
 $lines = array_map(fn($i) => "• {$i['name']} (арт. {$i['code']}) — {$i['qty']} шт × "
-    . ($i['cur'] === 'USD' ? money_usd($i['price']) : money_rub($i['price'])) . ($i['e'] === 1 ? ' [e-mail]' : ($i['e'] === 2 ? ' [услуга]' : '')), $items);
+    . ($i['cur'] === 'USD' ? money_usd($i['price']) : money_rub($i['price'])) . ($i['e'] === 1 ? ' [e-mail]' : ($i['e'] === 2 ? ' [услуга]' : '')) . (!empty($i['pre']) ? ' [под заказ]' : ''), $items);
 $total = money_rub($rub) . ($usd ? ' + ' . money_usd($usd) . ' (по курсу ЦБ)' : '');
 $body = implode("\n", $lines) . "\n\nОриентир по прайсу (РРЦ «1С» / тарифы): {$total} — покупателю не показывается, сумму укажите в счёте\nПоставка: {$delivery}\nОплата: {$payment}";
 // Покупателю — без цен: окончательную стоимость менеджер укажет в счёте
-$custLines = array_map(fn($i) => "• {$i['name']} (арт. {$i['code']}) — {$i['qty']} шт" . ($i['e'] === 1 ? ' [e-mail]' : ($i['e'] === 2 ? ' [услуга]' : '')), $items);
+$custLines = array_map(fn($i) => "• {$i['name']} (арт. {$i['code']}) — {$i['qty']} шт" . ($i['e'] === 1 ? ' [e-mail]' : ($i['e'] === 2 ? ' [услуга]' : '')) . (!empty($i['pre']) ? ' [под заказ]' : ''), $items);
 $custBody = implode("\n", $custLines) . "\n\nСтоимость: менеджер укажет в счёте (НДС не облагается, УСН)\nПоставка: {$delivery}\nОплата: {$payment}";
 $buyer = "Покупатель: {$name}\nE-mail: {$email}\nТелефон: {$phone}" . ($inn ? "\nИНН: {$inn}" : '') . ($company ? "\nОрганизация: {$company}" : '') . ($comment ? "\nКомментарий: {$comment}" : '');
 

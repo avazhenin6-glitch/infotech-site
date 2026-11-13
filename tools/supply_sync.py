@@ -284,7 +284,7 @@ def parse_product(page_html, url, overrides=None):
             av = str(o.get('availability') or '')
             if av:
                 avail_raw = 'json-ld: ' + av
-                stock = 1 if re.search(r'InStock|LimitedAvailability|OnlineOnly', av) else 0
+                stock = 1 if re.search(r'InStock|LimitedAvailability|OnlineOnly', av) else -1 if re.search(r'PreOrder|BackOrder|PreSale', av) else 0
     else:
         mpn = None
     ip = p.itemprops
@@ -293,7 +293,8 @@ def parse_product(page_html, url, overrides=None):
     price = price or _num(ip.get('price'))
     if stock is None and ip.get('availability'):
         avail_raw = 'itemprop: ' + ip['availability']
-        stock = 1 if re.search(r'InStock', ip['availability']) else 0
+        av = ip['availability']
+        stock = 1 if re.search(r'InStock|LimitedAvailability', av) else -1 if re.search(r'PreOrder|BackOrder', av) else 0
     if not images:
         if ip.get('image'):
             images.append(ip['image'])
@@ -378,6 +379,7 @@ def src_site(sup, limit, fetch, probe=False, probe_url=None):
     cd = rp.crawl_delay(UA) or rp.crawl_delay('*')
     if cd:
         fetch.delay = max(fetch.delay, float(cd))
+    limit = limit or 10 ** 9        # 0 — без ограничения
     lo, hi = sup.get('delay_sec', [2, 4])
     fetch.delay = max(fetch.delay, float(lo))
     allowed = lambda u: rp.can_fetch(UA, u)
@@ -413,7 +415,7 @@ def src_site(sup, limit, fetch, probe=False, probe_url=None):
 
     def urls_from_start():
         out, queue, seen = [], list(sup.get('start_urls') or []), set()
-        while queue and len(seen) < sup.get('max_category_pages', 30) and len(out) < limit * 5:
+        while queue and len(seen) < sup.get('max_category_pages', 30) and len(out) < min(limit * 5, 10 ** 6):
             u = queue.pop(0)
             if u in seen or not allowed(u):
                 continue
@@ -442,7 +444,7 @@ def src_site(sup, limit, fetch, probe=False, probe_url=None):
         cands = urls_from_start() if sup.get('start_urls') else [u for u in urls_from_sitemaps() if prod_re.search(u)]
     report['candidates'] = len(cands)
     offers, tried = [], 0
-    max_try = 6 if probe else limit * 4
+    max_try = 6 if probe else min(limit * 4, 10 ** 9)
     for u in cands:
         if len(offers) >= (3 if probe else limit) or tried >= max_try:
             break
@@ -505,7 +507,7 @@ def src_yml(sup, limit, fetch):
             if stock is None and el is not None:
                 stock = int(_num(el.get('instock') or el.text) or 0)
         if stock is None:
-            stock = 1 if o.get('available', 'true') != 'false' else 0
+            stock = 1 if o.get('available', 'true') != 'false' else -1   # YML: available=false — «под заказ»
         name = g('name') or ' '.join(x for x in (g('typePrefix'), g('vendor'), g('model')) if x)
         offers.append({
             'supplier_code': o.get('id') or g('vendorCode'), 'part_number': g('vendorCode'), 'vendor': g('vendor'),
@@ -537,7 +539,7 @@ def src_csv(sup, limit, fetch):
         if not g('name') or not g('price'):
             continue
         st = g('stock')
-        stock = int(_num(st) or 0) if re.search(r'\d', st) else (0 if re.search(r'нет|^0$|под заказ', st, re.I) else 1 if st else None)
+        stock = int(_num(st) or 0) if re.search(r'\d', st) else (-1 if re.search(r'под заказ|ожида', st, re.I) else 0 if re.search(r'нет|^0$', st, re.I) else 1 if st else None)
         offers.append({'supplier_code': g('supplier_code') or g('part_number'), 'part_number': g('part_number'), 'vendor': g('vendor'),
                        'name': g('name'), 'category': g('category'), 'price_in': _num(g('price')), 'stock': stock,
                        'images': [x for x in re.split(r'[\s,;]+', g('image')) if x.startswith('http')][:8],
@@ -746,7 +748,7 @@ def run(args, cfg):
     c.commit()
     with open(os.path.join(DATA, 'supply-status.json'), 'w', encoding='utf-8') as f:
         json.dump({'started': started, 'finished': NOW(), 'status': status, 'suppliers': summary, 'errors': errors, **stats}, f, ensure_ascii=False, indent=1)
-    log(f'=== готово: {status}; на витрине {stats["shown"]} (в наличии {stats["in_stock"]})')
+    log(f'=== готово: {status}; на витрине {stats["shown"]} (в наличии {stats["in_stock"]}, под заказ {stats["preorder"]})')
     if errors:
         notify('Каталог оборудования: ошибка обновления', '\n'.join(errors) + f'\n\nПодробности: {DOMAIN}/admin/?supply=1')
     return 0 if status != 'error' else 2
@@ -758,9 +760,10 @@ def reprice(c, cfg):
     for p in c.execute('SELECT sku, markup FROM products').fetchall():
         offs = c.execute('SELECT price_in, stock FROM offers WHERE sku=?', (p['sku'],)).fetchall()
         avail = [o for o in offs if o['stock'] and o['stock'] > 0]
-        pool = avail or offs
+        pre = [o for o in offs if o['stock'] == -1]          # под заказ у поставщика
+        pool = avail or pre or offs
         cost = min((o['price_in'] for o in pool if o['price_in']), default=None)
-        stock = sum(o['stock'] for o in avail)
+        stock = sum(o['stock'] for o in avail) if avail else (-1 if pre else 0)
         c.execute('UPDATE products SET cost=?, price=?, stock=? WHERE sku=?', (cost, retail(cost, p['markup'], step), stock, p['sku']))
     c.commit()
 
@@ -773,14 +776,15 @@ def E(s):
 def render(c, cfg):
     hide = cfg.get('out_of_stock') == 'hide'
     rows = c.execute('SELECT * FROM products WHERE active=1 AND price IS NOT NULL ORDER BY category, name').fetchall()
-    rows = [r for r in rows if not (hide and not r['stock'])]
+    rows = [r for r in rows if not (hide and r['stock'] == 0)]
     order = [k for k in cfg['categories'] if not k.startswith('_')]
     present = {r['category'] for r in rows}
     cats = [k for k in order if k in present] + sorted(present - set(order))
     items = []
     for r in rows:
         imgs = json.loads(r['images'] or '[]')
-        items.append([r['sku'], r['name'], cats.index(r['category']), int(r['price']), 1 if r['stock'] else 0, imgs[0]['file'] if imgs else ''])
+        st = 1 if r['stock'] > 0 else 2 if r['stock'] == -1 else 0     # 1 в наличии, 2 под заказ (можно заказать), 0 нет
+        items.append([r['sku'], r['name'], cats.index(r['category']), int(r['price']), st, imgs[0]['file'] if imgs else ''])
     stamp = datetime.datetime.now().strftime('%d.%m.%Y %H:%M')
     js = '/* Каталог оборудования ИНФОТЕХ — формируется tools/supply_sync.py, вручную не править */\nwindow.SUPPLY=' + \
          json.dumps({'date': stamp, 'cats': cats, 'items': items}, ensure_ascii=False, separators=(',', ':')) + ';\n'
@@ -798,19 +802,21 @@ def render(c, cfg):
             d = os.path.join(PUB, 'tovar', r['sku'])
             os.makedirs(d, exist_ok=True)
             with open(os.path.join(d, 'index.html'), 'w', encoding='utf-8') as f:
-                f.write(product_page(tpl, r, hidden=hide and not r['stock']))
+                f.write(product_page(tpl, r, hidden=hide and r['stock'] == 0))
             pages += 1
         sm = ''.join(f'<url><loc>{DOMAIN}/tovar/{r["sku"]}/</loc><lastmod>{(r["updated"] or "")[:10]}</lastmod></url>\n' for r in allrows)
         with open(os.path.join(PUB, 'sitemap-products.xml'), 'w', encoding='utf-8') as f:
             f.write('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + sm + '</urlset>\n')
-    return {'shown': len(items), 'in_stock': sum(1 for i in items if i[4]), 'categories': len(cats), 'pages': pages}
+    return {'shown': len(items), 'in_stock': sum(1 for i in items if i[4] == 1), 'preorder': sum(1 for i in items if i[4] == 2),
+            'categories': len(cats), 'pages': pages}
 
 
 def product_page(tpl, r, hidden=False):
     imgs = json.loads(r['images'] or '[]')
     specs = json.loads(r['specs'] or '[]')
     url = f'{DOMAIN}/tovar/{r["sku"]}/'
-    in_stock = bool(r['stock']) and not hidden
+    in_stock = r['stock'] > 0 and not hidden
+    preorder = r['stock'] == -1 and not hidden
     price = f'{int(r["price"]):,}'.replace(',', ' ') + ' ₽'
     gallery = ''.join(f'<img src="{E(i["file"])}" alt="{E(r["name"])}{"" if n == 0 else " — фото " + str(n + 1)}" loading="{"eager" if n == 0 else "lazy"}">' for n, i in enumerate(imgs)) \
         or '<div class="pg-noimg">Фото уточняйте у менеджера</div>'
@@ -818,12 +824,16 @@ def product_page(tpl, r, hidden=False):
     buy = (f'<div class="pbuy-st ok">В наличии</div><div class="pbuy-row"><div class="qty pq"><button type="button" class="cut" data-pdec aria-label="Уменьшить">−</button>'
            f'<input value="1" data-pq inputmode="numeric" aria-label="Количество"><button type="button" class="cut" data-pinc aria-label="Увеличить">+</button></div>'
            f'<button class="btn btn-primary cut" data-buy="{E(r["sku"])}">В корзину</button></div>') if in_stock else \
-          ('<div class="pbuy-st">Под заказ</div><p class="pbuy-note">Сейчас нет на складе поставщика. Оставьте заявку — менеджер уточнит срок поставки и цену.</p>'
+          (f'<div class="pbuy-st pre">Под заказ</div><p class="pbuy-note">Поставляется со склада дистрибьютора. Срок поставки менеджер уточнит и подтвердит перед выставлением счёта.</p>'
+           f'<div class="pbuy-row"><div class="qty pq"><button type="button" class="cut" data-pdec aria-label="Уменьшить">−</button>'
+           f'<input value="1" data-pq inputmode="numeric" aria-label="Количество"><button type="button" class="cut" data-pinc aria-label="Увеличить">+</button></div>'
+           f'<button class="btn btn-primary cut" data-buy="{E(r["sku"])}">Заказать</button></div>') if preorder else \
+          ('<div class="pbuy-st">Нет в наличии</div><p class="pbuy-note">Сейчас нет у поставщиков. Оставьте заявку — менеджер подберёт аналог или сообщит срок поступления.</p>'
            '<a class="btn btn-primary cut" href="#contact">Узнать срок поставки</a>')
     ld = {'@context': 'https://schema.org', '@type': 'Product', 'name': r['name'], 'sku': r['sku'], 'url': url,
           'description': (r['description'] or r['name'])[:500], 'category': r['category'],
           'offers': {'@type': 'Offer', 'price': int(r['price']), 'priceCurrency': 'RUB', 'url': url,
-                     'availability': 'https://schema.org/' + ('InStock' if in_stock else 'PreOrder'),
+                     'availability': 'https://schema.org/' + ('InStock' if in_stock else 'PreOrder' if preorder else 'OutOfStock'),
                      'seller': {'@type': 'Organization', 'name': 'ИНФОТЕХ'}}}
     if r['vendor']:
         ld['brand'] = {'@type': 'Brand', 'name': r['vendor']}
@@ -851,7 +861,7 @@ def product_page(tpl, r, hidden=False):
 {f'<section class="pdesc"><div class="wrap"><h2>Описание</h2><p>{E(r["description"])}</p></div></section>' if r['description'] else ''}
 '''
     title = f'{r["name"]} — купить в ИНФОТЕХ'
-    desc = f'{r["name"]}: {"в наличии" if in_stock else "под заказ"}, {price}. Поставка, установка и настройка — ИНФОТЕХ, Санкт-Петербург.'
+    desc = f'{r["name"]}: {"в наличии" if in_stock else "под заказ" if preorder else "нет в наличии"}, {price}. Поставка, установка и настройка — ИНФОТЕХ, Санкт-Петербург.'
     return (tpl.replace('/assets/tovar-template.html', f'/tovar/{r["sku"]}/')
                .replace('__PRODUCT_TITLE__', E(title)).replace('__PRODUCT_DESC__', E(desc)[:300])
                .replace('__PRODUCT_LD__', lds).replace('__PRODUCT_BODY__', body)

@@ -665,3 +665,5 @@ mark{background:var(--sky);color:inherit;padding:0 1px}
 .pdesc p{max-width:900px;font-size:16px;line-height:1.7}
 @media(max-width:900px){.pgrid{grid-template-columns:1fr}}
 @media(max-width:640px){.pthumb{flex-basis:56px;width:56px;height:56px}.prow .pmain{align-items:flex-start}}
+.tag.pre{background:#fdf1d8;color:#7a5200}
+.pbuy-st.pre{background:#fdf1d8;color:#7a5200}

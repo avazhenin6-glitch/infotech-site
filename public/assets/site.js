@@ -17,7 +17,7 @@ const rub=n=>Math.round(n).toLocaleString('ru-RU')+' ₽';
 const usd=n=>'$'+n.toLocaleString('en-US',{maximumFractionDigits:2});
 const money=(p,q=1)=>p.cur==='$'?usd(p.price*q):rub(p.price*q);
 const KIND=p=>p.e===1?'Электронная поставка':p.e===2?'Услуга ИНФОТЕХ':'Физическая поставка';
-const KIND_TAG=p=>ISUP(p)?(p.st?'<span class="tag ok cut">В наличии</span>':'<span class="tag cut">Под заказ</span>'):p.e===1?'<span class="tag e cut">Электронная поставка</span>':p.e===2?'<span class="tag cut" style="background:var(--slate);color:var(--ghost)">Услуга ИНФОТЕХ</span>':'<span class="tag cut">Физическая поставка</span>';
+const KIND_TAG=p=>ISUP(p)?(p.st===1?'<span class="tag ok cut">В наличии</span>':p.st===2?'<span class="tag pre cut">Под заказ</span>':'<span class="tag cut">Нет в наличии</span>'):p.e===1?'<span class="tag e cut">Электронная поставка</span>':p.e===2?'<span class="tag cut" style="background:var(--slate);color:var(--ghost)">Услуга ИНФОТЕХ</span>':'<span class="tag cut">Физическая поставка</span>';
 const esc=t=>t.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const SHOP=!!document.getElementById('shop');
 
@@ -271,7 +271,7 @@ function renderShop(focus){if(!SHOP)return;
   $('plist').innerHTML=show.length?show.map(p=>`<div class="prow cut${ISUP(p)?' sup':''}">
     <div class="pmain">${ISUP(p)?`<a class="pthumb" href="${PURL(p)}" tabindex="-1">${p.img?`<img src="${esc(p.img)}" alt="" loading="lazy">`:''}</a>`:''}<div><h4>${ISUP(p)?`<a href="${PURL(p)}">${st.q?hl(p.n,st.q):esc(p.n)}</a>`:(st.q?hl(p.n,st.q):esc(p.n))}</h4><div class="meta"><span>Артикул: ${esc(p.code)}</span>${KIND_TAG(p)}${st.c<0||st.q?`<span>${CAT.cats[p.c].s[p.s]}</span>`:''}</div></div></div>
     <div class="pr">${money(p)}${p.cur==='$'?'<span class="usd">оплата в ₽ по курсу ЦБ</span>':''}</div>
-    ${ISUP(p)&&!p.st?`<a class="btn btn-back cut" href="${PURL(p)}">Узнать срок</a>`:cart[p.code]?qtyCtl(p.code,cart[p.code],'pq'):`<button class="btn btn-primary cut" data-add="${esc(p.code)}">В корзину</button>`}
+    ${ISUP(p)&&!p.st?`<a class="btn btn-back cut" href="${PURL(p)}">Подробнее</a>`:cart[p.code]?qtyCtl(p.code,cart[p.code],'pq'):`<button class="btn btn-primary cut" data-add="${esc(p.code)}">В корзину</button>`}
   </div>`).join(''):'<div class="empty">Ничего не найдено — попробуйте другой запрос или <a href="#contact" style="color:var(--slate);border-bottom:1px solid">напишите нам</a>.</div>';
   $('moreBtn').parentElement.style.display=L.length>show.length?'flex':'none';
   $('moreBtn').textContent=`Показать ещё (осталось ${L.length-show.length})`;
@@ -304,7 +304,7 @@ function bindQty(root){
 let toastT;
 function addToCart(id,n){
   const pp=P(id);if(!pp)return;
-  if(ISUP(pp)&&!pp.st){location.href=PURL(pp);return}   // под заказ — без оформления (регламент)
+  if(ISUP(pp)&&!pp.st){location.href=PURL(pp);return}   // нет у поставщиков — без оформления (регламент); «под заказ» (st=2) — можно
   cart[id]=(cart[id]||0)+(n||1);saveCart();updateCart();renderShop();
   $('toastName').textContent=P(id).n;$('toast').classList.add('on');
   clearTimeout(toastT);toastT=setTimeout(()=>$('toast').classList.remove('on'),4500);
@@ -396,7 +396,7 @@ async function postJSON(data){
 $('placeOrder').onclick=async()=>{
   if(!validStep(4))return;doneSteps.add(4);
   const t=cartTotals();
-  const lines=Object.entries(cart).map(([id,q])=>{const p=P(id);return`• ${p.n} (арт. ${p.code}) — ${q} шт${p.e===1?' [e-mail]':p.e===2?' [услуга]':''}`});
+  const lines=Object.entries(cart).map(([id,q])=>{const p=P(id);return`• ${p.n} (арт. ${p.code}) — ${q} шт${p.e===1?' [e-mail]':p.e===2?' [услуга]':''}${p.st===2?' [под заказ]':''}`});
   const txtBody=`${lines.join('\n')}\n\nСтоимость: менеджер укажет в счёте\nПоставка: ${dlvText()}\nОплата: ${val('pay')}\n\nПокупатель: ${$('bFio').value}\nE-mail для электронной поставки: ${$('bMail').value}\nТелефон: ${$('bTel').value}${$('bInn').value?'\nИНН: '+$('bInn').value:''}${$('bOrg').value?'\nОрганизация: '+$('bOrg').value:''}${$('bCom').value?'\nКомментарий: '+$('bCom').value:''}`;
   const btn=$('placeOrder');btn.disabled=true;btn.textContent='Отправляем…';$('smNote').textContent='';
   let no,demo=false;$('smNote').style.color='';
