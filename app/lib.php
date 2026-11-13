@@ -141,15 +141,20 @@ function smtp_send(string $to, string $encSubj, string $headers, string $body): 
     return true;
 }
 
-function send_telegram(string $text): void {
+function send_telegram(string $text): string {
     $t = cfg('telegram_bot_token'); $chat = cfg('telegram_chat_id');
-    if (!$t || !$chat || !function_exists('curl_init')) return;
+    if (!$t || !$chat || !function_exists('curl_init')) return 'не настроен';
     $api = rtrim((string)(cfg('telegram_api') ?: 'https://api.telegram.org'), '/');
     $ch = curl_init("$api/bot$t/sendMessage");
     curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 8,
         CURLOPT_POSTFIELDS => ['chat_id' => $chat, 'text' => mb_substr($text, 0, 4000)]]);
     if ($px = cfg('telegram_proxy')) curl_setopt($ch, CURLOPT_PROXY, $px);
     $r = curl_exec($ch);
-    if ($r === false) error_log('Telegram: ' . curl_error($ch));
+    if ($r === false) { $err = curl_error($ch); curl_close($ch); error_log('Telegram: ' . $err); return 'ошибка соединения: ' . $err; }
     curl_close($ch);
+    $j = json_decode((string)$r, true);
+    if (!empty($j['ok'])) return 'ok';
+    $msg = (string)($j['description'] ?? $r);
+    error_log('Telegram: ' . $msg);
+    return 'ошибка: ' . $msg;
 }
