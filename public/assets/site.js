@@ -437,7 +437,7 @@ updateCart();
         <div class="tn"><h4>${t.name}</h4>${hit?'<span class="badge cut">Выбирают чаще</span>':''}</div>
         <div class="pur">${t.purpose}</div>
         <div class="tp">${fmt(m)} <small>₽/мес</small>${d?`<span class="old">${fmt(t.price)}</span>`:''}</div>
-        <div class="tmig${t.price>=10000?'':' paid'}">${t.price>=10000?'✓ Перенос базы — бесплатно':'Перенос базы — платно'}</div>
+        <div class="tmig${t.price>=10000?'':' paid'}">${t.price>=10000?'✓ Перенос базы — бесплатно':'Перенос базы — 4 800 ₽'}</div>
         <div class="tot">${per>1?`${fmt(m*per)} ₽ за ${MONTHS(per)}, экономия ${fmt(t.price*per*d)} ₽`:'оплата помесячно'}</div>
         <div class="tsp"><div class="cut"><b>${t.cpu}</b><span>vCPU</span></div><div class="cut"><b>${t.ram}</b><span>ГБ RAM</span></div><div class="cut"><b>${t.disk}</b><span>ГБ диск</span></div></div>
         <div class="tdesc">${t.desc}</div>
