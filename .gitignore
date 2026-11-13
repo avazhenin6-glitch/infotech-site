@@ -1,0 +1,5 @@
+app/config.php
+app/data/*
+!app/data/.keep
+*.sqlite
+*.prev.js
