@@ -144,7 +144,8 @@ function smtp_send(string $to, string $encSubj, string $headers, string $body): 
 function send_telegram(string $text): void {
     $t = cfg('telegram_bot_token'); $chat = cfg('telegram_chat_id');
     if (!$t || !$chat || !function_exists('curl_init')) return;
-    $ch = curl_init("https://api.telegram.org/bot$t/sendMessage");
+    $api = rtrim((string)(cfg('telegram_api') ?: 'https://api.telegram.org'), '/');
+    $ch = curl_init("$api/bot$t/sendMessage");
     curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 8,
         CURLOPT_POSTFIELDS => ['chat_id' => $chat, 'text' => mb_substr($text, 0, 4000)]]);
     if ($px = cfg('telegram_proxy')) curl_setopt($ch, CURLOPT_PROXY, $px);

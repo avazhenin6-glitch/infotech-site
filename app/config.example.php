@@ -37,7 +37,10 @@ return [
     'telegram_chat_id'   => '',
     // Telegram с сервера доступен через прокси Xray (тот же, что у vazhenin.consulting).
     // Формат: http://127.0.0.1:10809  или  socks5h://127.0.0.1:10808 . Пусто — без прокси.
-    'telegram_proxy'     => 'http://127.0.0.1:10809',
+    'telegram_proxy'     => '',
+    // Либо адрес ретранслятора на сервере в Узбекистане (nginx → api.telegram.org), например
+    // 'https://uz.example.ru/секретный-путь'. Пусто — напрямую https://api.telegram.org.
+    'telegram_api'       => '',
 
     // Вход в админку /admin/: логин и ХЕШ пароля.
     // Хеш создаётся командой:  php -r "echo password_hash('ВАШ_ПАРОЛЬ', PASSWORD_DEFAULT), PHP_EOL;"
