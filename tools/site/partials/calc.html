@@ -1,0 +1,74 @@
+<!-- Калькулятор -->
+<section id="calc">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <div>
+        <div class="kicker"><svg viewBox="0 0 14 18"><path d="M2 2l9 7-9 7" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/></svg>Калькулятор</div>
+        <h2 class="plaque cut-tl">Подбор сервера и 1С</h2>
+      </div>
+      <p>Укажите, сколько человек работает в 1С и сколько у вас баз, — калькулятор подберёт тариф аренды сервера, режим работы 1С и комплект лицензий.</p>
+    </div>
+
+    <div class="calc-grid">
+      <div class="calc-form outline cut rv">
+        <div class="inner cut">
+          <div class="field">
+            <label for="users">Одновременных пользователей 1С <output id="usersOut">4</output></label>
+            <input type="range" id="users" min="1" max="30" value="4">
+          </div>
+          <div class="field">
+            <label for="bases">Активных информационных баз <output id="basesOut">2</output></label>
+            <input type="range" id="bases" min="1" max="20" value="2">
+          </div>
+          <div class="field">
+            <label for="size">Объём баз 1С, ГБ <output id="sizeOut">20</output></label>
+            <input type="range" id="size" min="1" max="400" step="1" value="20">
+          </div>
+          <div class="field">
+            <div class="lbl">Основная конфигурация 1С</div>
+            <div class="chips" id="cfg">
+              <button class="chip cut" data-v="buh">Бухгалтерия</button>
+              <button class="chip cut on" data-v="unf">УНФ</button>
+              <button class="chip cut" data-v="ut">Управление торговлей</button>
+              <button class="chip cut" data-v="zup">ЗУП</button>
+              <button class="chip cut" data-v="ka">Комплексная автоматизация</button>
+              <button class="chip cut" data-v="erp">ERP</button>
+            </div>
+          </div>
+          <div class="field">
+            <div class="lbl">Оплата аренды</div>
+            <div class="chips" id="period"></div>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <div class="lbl">Дополнительно</div>
+            <div class="checks">
+              <label class="check"><input type="checkbox" id="prem"> Нужна максимальная скорость (линейка «Премиум», DDR4 + NVMe)</label>
+              <label class="check"><input type="checkbox" id="lic"> Нужны лицензии 1С</label>
+              <label class="check"><input type="checkbox" id="sup"> Нужно абонентское сопровождение 1С</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="result cut rv" id="result">
+        <h3>Рекомендуемый тариф</h3>
+        <div class="tier cut" id="tier">—</div>
+        <div class="specs">
+          <div class="spec cut"><b id="cpu">4</b><span>vCPU</span></div>
+          <div class="spec cut"><b id="ram">24</b><span>ГБ RAM</span></div>
+          <div class="spec cut"><b id="ssd">120</b><span>ГБ диск</span></div>
+        </div>
+        <ul class="res-list" id="resList"></ul>
+        <div class="price">
+          <div><small id="priceLbl">Аренда сервера</small><b id="price">—</b> <small style="display:inline" id="priceUnit">₽/мес</small></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-light cut" id="calcCart">В корзину</button>
+            <a href="#contact" class="btn btn-ghost" id="toReq" style="padding:13px 16px">Отправить расчёт</a>
+          </div>
+        </div>
+        <p class="note" id="licLink" style="display:none"><a href="{{R}}magazin-1c/" style="color:var(--sky);border-bottom:1px solid">Подобрать лицензии 1С в магазине →</a></p>
+        <p class="note">Во все тарифы входит базовая услуга «под ключ»: настройка сервера и СУБД под 1С, мониторинг, резервное копирование, защищённый канал OpenVPN и поддержка 1-й линии. <a href="{{R}}uslugi/arenda-servera-1c/#rent" style="color:var(--sky);border-bottom:1px solid">Все тарифы →</a></p>
+      </div>
+    </div>
+  </div>
+</section>

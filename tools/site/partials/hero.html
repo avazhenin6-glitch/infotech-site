@@ -1,0 +1,85 @@
+<!-- Hero -->
+<section class="hero" id="top" style="padding:0">
+  <div class="wrap hero-grid">
+    <div class="rv">
+      <div class="eyebrow"><i></i>IT-партнёр полного цикла</div>
+      <h1>Единая IT-экосистема: <em>от сервера</em> до бизнес-логики в&nbsp;1С</h1>
+      <p class="lead">Поставляем оборудование, размещаем инфраструктуру на надёжных серверах и автоматизируем учёт на «1С» и «Битрикс24». Один подрядчик — одна ответственность за весь результат.</p>
+      <div class="hero-cta">
+        <a href="#calc" class="btn btn-light cut">Подобрать конфигурацию
+          <svg class="arrow" viewBox="0 0 18 12"><path d="M0 6h15M10 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2"/></svg></a>
+        <a href="uslugi/" class="btn btn-ghost">Все услуги</a>
+      </div>
+      <div class="hero-stats">
+        <div><b>3 в 1</b><span>оборудование, серверы, 1С</span></div>
+        <div><b>24/7</b><span>мониторинг инфраструктуры</span></div>
+        <div><b>1</b><span>договор на всё</span></div>
+      </div>
+    </div>
+
+    <div class="eco rv" id="eco">
+      <svg viewBox="0 0 560 470" role="img" aria-label="Интерактивная схема IT-экосистемы">
+        <defs>
+          <linearGradient id="hexg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#CEE4F2"/><stop offset=".55" stop-color="#4B7BA6"/><stop offset="1" stop-color="#001C1B"/></linearGradient>
+        </defs>
+        <!-- дорожки -->
+        <path id="t-1c"   class="trace" d="M280 172 V120 L300 100 V74"/>
+        <path id="t-srv"  class="trace" d="M226 262 H170 L130 302 V350"/>
+        <path id="t-hw"   class="trace" d="M334 262 H390 L430 302 V350"/>
+        <path id="t-b24"  class="trace" d="M330 196 L380 146 H420"/>
+        <path id="t-sec"  class="trace" d="M230 196 L180 146 H140"/>
+        <path id="t-sup"  class="trace" d="M280 318 V390"/>
+        <!-- фоновые дорожки -->
+        <path class="trace" d="M40 220 H96 L116 240 H150" style="stroke:rgba(206,228,242,.16)"/>
+        <path class="trace" d="M520 220 H464 L444 240 H410" style="stroke:rgba(206,228,242,.16)"/>
+        <circle class="pad" cx="34" cy="220" r="6" style="stroke:rgba(206,228,242,.3)"/>
+        <circle class="pad" cx="526" cy="220" r="6" style="stroke:rgba(206,228,242,.3)"/>
+        <!-- импульсы -->
+        <g id="pulses"></g>
+
+        <!-- центр -->
+        <g class="node" data-k="core" transform="translate(280 245)">
+          <polygon points="0,-78 68,-39 68,39 0,78 -68,39 -68,-39" fill="url(#hexg)" stroke="#CEE4F2" stroke-width="2"/>
+          <polygon points="0,-62 54,-31 54,31 0,62 -54,31 -54,-31" fill="rgba(0,28,27,.55)"/>
+          <text text-anchor="middle" y="-4">Ваш бизнес</text>
+          <text class="sub" text-anchor="middle" y="16">точка входа</text>
+        </g>
+
+        <!-- узлы -->
+        <g class="node" data-k="1c" transform="translate(300 48)">
+          <polygon class="body" points="-62,-26 50,-26 62,-14 62,26 -50,26 -62,14"/>
+          <text text-anchor="middle" y="0">1С</text>
+          <text class="sub" text-anchor="middle" y="15">учёт · CRM · ERP</text>
+        </g>
+        <g class="node" data-k="srv" transform="translate(130 378)">
+          <polygon class="body" points="-72,-26 60,-26 72,-14 72,26 -60,26 -72,14"/>
+          <text text-anchor="middle" y="0">Серверы</text>
+          <text class="sub" text-anchor="middle" y="15">аренда · хостинг</text>
+        </g>
+        <g class="node" data-k="hw" transform="translate(430 378)">
+          <polygon class="body" points="-78,-26 66,-26 78,-14 78,26 -66,26 -78,14"/>
+          <text text-anchor="middle" y="0">Оборудование</text>
+          <text class="sub" text-anchor="middle" y="15">поставка · монтаж</text>
+        </g>
+        <g class="node" data-k="b24" transform="translate(470 146)">
+          <polygon class="body" points="-54,-22 44,-22 54,-12 54,22 -44,22 -54,12"/>
+          <text text-anchor="middle" y="5" style="font-size:13px">Битрикс24</text>
+        </g>
+        <g class="node" data-k="sec" transform="translate(90 146)">
+          <polygon class="body" points="-54,-22 44,-22 54,-12 54,22 -44,22 -54,12"/>
+          <text text-anchor="middle" y="5" style="font-size:13px">Защита</text>
+        </g>
+        <g class="node" data-k="sup" transform="translate(280 418)">
+          <polygon class="body" points="-70,-22 60,-22 70,-12 70,22 -60,22 -70,12"/>
+          <text text-anchor="middle" y="5" style="font-size:13px">Сопровождение</text>
+        </g>
+        <!-- контактные узлы на концах дорожек -->
+        <g id="pads"></g>
+      </svg>
+      <div class="eco-panel cut" id="ecoPanel">
+        <h4>Ваш бизнес в центре системы</h4>
+        <p>Все звенья — железо, серверы, учётные системы и поддержка — подобраны так, чтобы работать вместе. Наведите курсор или нажмите на любой узел схемы.</p>
+      </div>
+    </div>
+  </div>
+</section>

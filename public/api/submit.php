@@ -9,6 +9,16 @@
 declare(strict_types=1);
 require __DIR__ . '/../../app/lib.php';
 
+
+/* Телефон: принимаем только российский номер +7XXXXXXXXXX и приводим к виду +7 (XXX) XXX-XX-XX */
+function norm_phone(string $p): ?string {
+    $d = preg_replace('/\D/', '', $p);
+    if (strlen($d) === 11 && ($d[0] === '7' || $d[0] === '8')) $d = '7' . substr($d, 1);
+    elseif (strlen($d) === 10) $d = '7' . $d;
+    else return null;
+    return sprintf('+7 (%s) %s-%s-%s', substr($d, 1, 3), substr($d, 4, 3), substr($d, 7, 2), substr($d, 9, 2));
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_out(['ok' => false, 'error' => 'method'], 405);
 
 $in = json_decode(file_get_contents('php://input') ?: '', true);
@@ -25,8 +35,9 @@ $pdo  = db();
 if ($type === 'lead') {
     $name = clean($in['name'] ?? '', 120); $phone = clean($in['phone'] ?? '', 60);
     $company = clean($in['company'] ?? '', 200); $comment = clean($in['comment'] ?? '', 3000);
-    if (mb_strlen($name) < 2 || strlen(preg_replace('/\D/', '', $phone)) < 10)
-        json_out(['ok' => false, 'error' => 'Укажите имя и телефон'], 422);
+    $phone = norm_phone($phone) ?? '';
+    if (mb_strlen($name) < 2 || $phone === '')
+        json_out(['ok' => false, 'error' => 'Укажите имя и телефон в формате +7 (XXX) XXX-XX-XX'], 422);
     $pdo->prepare('INSERT INTO orders (type, created_at, name, phone, company, comment, ip, user_agent) VALUES (?,?,?,?,?,?,?,?)')
         ->execute(['lead', $now, $name, $phone, $company, $comment, client_ip(), clean($_SERVER['HTTP_USER_AGENT'] ?? '', 300)]);
     $id = (int)$pdo->lastInsertId();
@@ -61,7 +72,7 @@ $inn = preg_replace('/\D/', '', (string)($b['inn'] ?? '')); $company = clean($b[
 $errors = [];
 if (mb_strlen($name) < 3) $errors[] = 'ФИО';
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'e-mail';
-if (strlen(preg_replace('/\D/', '', $phone)) < 10) $errors[] = 'телефон';
+$phone = norm_phone($phone) ?? ''; if ($phone === '') $errors[] = 'телефон (+7 и 10 цифр)';
 if ($inn !== '' && !in_array(strlen($inn), [10, 12], true)) $errors[] = 'ИНН (10 или 12 цифр)';
 if ($errors) json_out(['ok' => false, 'error' => 'Проверьте поля: ' . implode(', ', $errors)], 422);
 

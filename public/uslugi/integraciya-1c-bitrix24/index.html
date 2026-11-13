@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Интеграция 1С и Битрикс24 — ИНФОТЕХ</title>
+<meta name="description" content="Связываем учёт в 1С и CRM Битрикс24: менеджеры видят остатки и оплаты, а сделки и счета не нужно переносить вручную.">
+<link rel="canonical" href="https://pbk.spb.ru/uslugi/integraciya-1c-bitrix24/">
+<meta property="og:title" content="Интеграция 1С и Битрикс24 — ИНФОТЕХ"><meta property="og:description" content="Связываем учёт в 1С и CRM Битрикс24: менеджеры видят остатки и оплаты, а сделки и счета не нужно переносить вручную."><meta property="og:type" content="website">
+<link rel="icon" href="../../logo-light-s.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/site.css">
+</head>
+<body>
+<!-- Шапка -->
+<header>
+  <div class="wrap nav">
+    <a href="../../" aria-label="ИНФОТЕХ — на главную"><img src="../../logo-light-s.png" alt="ИНФОТЕХ"></a>
+    <div class="hsearch" id="hsearch">
+      <label class="search cut"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#4B7BA6" stroke-width="2.4"><circle cx="8.5" cy="8.5" r="6"/><path d="M13 13l5 5"/></svg><input id="hq" placeholder="Поиск программ 1С по прайсу…" autocomplete="off" aria-label="Быстрый поиск по каталогу"></label>
+      <div class="sugg" id="hsugg"></div>
+    </div>
+    <ul id="menu">
+      <li><a href="../../#about">О компании</a></li>
+      <li><a href="../../uslugi/" aria-current="page">Услуги</a></li>
+      <li><a href="../../uslugi/arenda-servera-1c/">Аренда серверов</a></li>
+      <li><a href="../../magazin-1c/">Магазин 1С</a></li>
+      <li><a href="../../uslugi/soprovozhdenie-1c/">Сопровождение</a></li>
+      <li><a href="#contact">Контакты</a></li>
+    </ul>
+    <div class="nav-r">
+      <a href="#contact" class="btn btn-primary cut">Оставить заявку</a>
+      <button class="cart-btn" id="cartBtn" aria-label="Корзина">
+        <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"><path d="M3 10h22l-3 13H6z"/><path d="M9 10l5-7 5 7M11 15v4M17 15v4"/></svg>
+        <b id="cartCount">0</b>
+      </button>
+    <button class="burger" aria-label="Меню" onclick="document.getElementById('menu').classList.toggle('open')"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+</header>
+
+<section class="phero">
+  <div class="wrap phero-grid">
+    <div class="rv"><nav class="pcrumbs" aria-label="Навигация"><a href="../../">Главная</a> <span>→</span> <a href="../../uslugi/">Услуги</a> <span>→</span> <a href="../../uslugi/#1c">1С</a> <span>→</span> <span aria-current="page">Интеграция 1С и Битрикс24</span></nav><h1>Интеграция 1С и Битрикс24</h1><p class="lead">Связываем учёт в 1С и CRM Битрикс24: менеджеры видят остатки и оплаты, а сделки и счета не нужно переносить вручную.</p><div class="hero-cta"><a class="btn btn-light cut" href="#contact">Оставить заявку <svg class="arrow" viewBox="0 0 18 12"><path d="M0 6h15M10 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2"/></svg></a></div></div>
+    <div class="phero-ic rv"><svg class="big" viewBox="0 0 48 48" fill="none" stroke="#CEE4F2" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 28l8-8"/><path d="M22 14l3-3a8 8 0 0 1 11 11l-3 3M26 34l-3 3a8 8 0 0 1-11-11l3-3"/></svg></div>
+  </div>
+</section>
+<section id="includes">
+  <div class="wrap">
+    <div class="sec-head rv"><div><div class="kicker"><svg viewBox="0 0 14 18"><path d="M2 2l9 7-9 7" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/></svg>Состав услуги</div><h2 class="plaque cut-tl">Что входит</h2></div><p>Сделки, контрагенты, счета и остатки синхронизируются автоматически.</p></div>
+    <div class="cards"><div class="svc outline cut rv"><div class="inner cut"><h4>Обмен 1С ↔ Битрикс24</h4><p>Контрагенты, товары, сделки, счета, оплаты и остатки.</p></div></div><div class="svc outline cut rv"><div class="inner cut"><h4>Внедрение Битрикс24</h4><p>Настройка CRM, воронок продаж, задач и коммуникаций.</p></div></div><div class="svc outline cut rv"><div class="inner cut"><h4>Сайт и маркетплейсы</h4><p>Заказы с сайта и маркетплейсов сразу попадают в 1С.</p></div></div><div class="svc outline cut rv"><div class="inner cut"><h4>Банк и ЭДО</h4><p>Выписки и платежи из банка, электронный документооборот с контрагентами.</p></div></div></div>
+  </div>
+</section>
+<section style="padding-top:40px">
+  <div class="wrap">
+    <div class="sec-head rv"><div><div class="kicker"><svg viewBox="0 0 14 18"><path d="M2 2l9 7-9 7" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/></svg>Порядок работы</div><h2 style="font-size:clamp(28px,3.4vw,42px)">Как мы работаем</h2></div></div>
+    <div class="steps"><div class="step rv"><span class="pt"></span><small>01</small><h4>Схема обмена</h4><p>Определяем, какие данные и в какую сторону передавать.</p></div><div class="step rv"><span class="pt"></span><small>02</small><h4>Настройка</h4><p>Настраиваем модули обмена на копиях баз.</p></div><div class="step rv"><span class="pt"></span><small>03</small><h4>Проверка</h4><p>Тестируем на реальных сценариях продаж.</p></div><div class="step rv"><span class="pt"></span><small>04</small><h4>Запуск</h4><p>Включаем обмен и следим за ним первые недели.</p></div></div>
+  </div>
+</section>
+<section class="related">
+  <div class="wrap">
+    <div class="sec-head rv"><div><div class="kicker"><svg viewBox="0 0 14 18"><path d="M2 2l9 7-9 7" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/></svg>Смотрите также</div><h2 style="font-size:clamp(26px,3vw,36px)">Связанные услуги</h2></div>
+    <a class="btn btn-back cut" href="../../uslugi/">Все услуги <svg class="arrow" viewBox="0 0 18 12"><path d="M0 6h15M10 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2"/></svg></a></div>
+    <div class="cards"><a class="svc-link outline cut" href="../../uslugi/vnedrenie-1c/"><div class="inner cut"><svg class="ic" viewBox="0 0 48 48" fill="none" stroke="#4B7BA6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="24" r="7"/><path d="M24 5v7M24 36v7M5 24h7M36 24h7M10.6 10.6l5 5M32.4 32.4l5 5M37.4 10.6l-5 5M15.6 32.4l-5 5"/></svg><h4>Внедрение 1С</h4><p>Запуск учёта «под ключ»: обследование, настройка, перенос данных, обучение.</p><span class="more">Подробнее <svg class="arrow" viewBox="0 0 18 12"><path d="M0 6h15M10 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2"/></svg></span></div></a><a class="svc-link outline cut" href="../../uslugi/dorabotka-1c/"><div class="inner cut"><svg class="ic" viewBox="0 0 48 48" fill="none" stroke="#4B7BA6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14L7 24l10 10M31 14l10 10-10 10M27 9l-6 30"/></svg><h4>Доработка и разработка 1С</h4><p>Отчёты, печатные формы, обработки и расширения под ваши процессы.</p><span class="more">Подробнее <svg class="arrow" viewBox="0 0 18 12"><path d="M0 6h15M10 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2"/></svg></span></div></a><a class="svc-link outline cut" href="../../uslugi/arenda-servera-1c/"><div class="inner cut"><svg class="ic" viewBox="0 0 48 48" fill="none" stroke="#4B7BA6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="10" y="5" width="28" height="38"/><path d="M16 12h16M16 18h16M16 24h16"/><circle cx="24" cy="34" r="3"/></svg><h4>Аренда сервера для 1С</h4><p>Выделенные ресурсы в ЦОД с настройкой «под ключ». Тарифы от 5 900 ₽/мес.</p><span class="more">Подробнее <svg class="arrow" viewBox="0 0 18 12"><path d="M0 6h15M10 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2"/></svg></span></div></a></div>
+  </div>
+</section>
+
+<!-- Контакты -->
+<section class="contact" id="contact">
+  <div class="wrap contact-grid">
+    <div class="rv">
+      <div class="kicker"><svg viewBox="0 0 14 18"><path d="M2 2l9 7-9 7" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/></svg>Связаться</div>
+      <h2>Обсудим вашу задачу</h2>
+      <p>Оставьте заявку — проведём бесплатную консультацию и предложим решение, которое закроет задачу целиком: от сервера до бизнес-логики.</p>
+      <div class="cinfo">
+        <div><i></i><a href="tel:+78129286884">8 (812) 928-68-84</a></div>
+        <div><i></i><a href="mailto:info@pbk.spb.ru">info@pbk.spb.ru</a></div>
+        <div><i></i>Пн–Пт, 9:00–18:00</div>
+      </div>
+    </div>
+    <form class="req cut rv" id="reqForm" data-service="Интеграция 1С и Битрикс24"><input type="text" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
+      <div class="row">
+        <input class="inp" name="name" placeholder="Имя" required>
+        <input class="inp" name="phone" type="tel" placeholder="+7 (___) ___-__-__" required aria-label="Телефон (обязательно)">
+      </div>
+      <input class="inp" name="company" placeholder="Компания">
+      <textarea class="inp" name="msg" id="msg" rows="4" placeholder="Задача: например, перенести 1С на сервер и настроить обмен с Битрикс24"></textarea>
+      <button class="btn btn-primary cut" type="submit">Отправить заявку
+        <svg class="arrow" viewBox="0 0 18 12"><path d="M0 6h15M10 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
+      <p class="fine">Нажимая кнопку, вы соглашаетесь на <a href="../../privacy.html" style="color:var(--slate);border-bottom:1px solid">обработку персональных данных</a>.</p>
+      <div class="ok cut" id="ok"></div>
+    </form>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="f-grid">
+      <div><img src="../../logo-dark-s.png" alt="ИНФОТЕХ"><p>ООО «ИНФОТЕХ» — комплексные IT-решения для бизнеса: аренда серверов, автоматизация на 1С и поставка оборудования.</p>
+        <p style="margin-top:14px"><a href="tel:+78129286884" style="color:var(--ghost);font-weight:500">8 (812) 928-68-84</a><br><a href="mailto:info@pbk.spb.ru">info@pbk.spb.ru</a></p></div>
+      <div><h5>Услуги</h5><ul><li><a href="../../uslugi/arenda-servera-1c/">Аренда серверов для 1С</a></li><li><a href="../../uslugi/soprovozhdenie-1c/">Сопровождение 1С</a></li><li><a href="../../uslugi/vnedrenie-1c/">Внедрение 1С</a></li><li><a href="../../uslugi/">Все услуги</a></li></ul></div>
+      <div><h5>Магазин 1С</h5><ul><li><a href="../../magazin-1c/?cat=products">Продукты 1С</a></li><li><a href="../../magazin-1c/?cat=industry">Отраслевые решения</a></li><li><a href="../../magazin-1c/?cat=services">Сервисы 1С</a></li><li><a href="../../magazin-1c/?e=1">Электронная поставка</a></li><li><a href="../../magazin-1c/?cat=hw">Торговое оборудование</a></li></ul></div>
+      <div><h5>Реквизиты</h5><ul style="font-size:13px;gap:5px">
+        <li>ООО «ИНФОТЕХ»</li><li>ИНН 7811653356 · КПП 470601001</li><li>ОГРН 1177847218977</li>
+        <li>188680, Ленинградская обл., Всеволожский р-н, д. Токкари, ул. Центральная, д. 14Г</li></ul></div>
+    </div>
+    <div class="f-bottom"><span>© 2026 ООО «Информационные технологии»</span><a href="../../privacy.html">Политика обработки персональных данных</a></div>
+  </div>
+</footer>
+
+<!-- Корзина -->
+<div class="ovl" id="ovl"></div>
+<aside class="drawer" id="drawer" aria-label="Корзина">
+  <div class="dr-head"><h3>Моя корзина</h3><button class="x" data-close aria-label="Закрыть">×</button></div>
+  <div class="dr-body" id="cartList"></div>
+  <div class="dr-foot">
+    <div class="tot"><span>Итого</span><b id="cartTotal">0 ₽</b></div>
+    <div class="tot-note" id="cartNote"></div>
+    <button class="btn btn-primary cut" id="toCheckout">Оформить заказ</button>
+  </div>
+</aside>
+
+<div class="toast cut" id="toast"><p><b>Товар добавлен в корзину</b><span id="toastName"></span></p><button class="btn btn-light cut" id="toastGo">Оформить заказ</button></div>
+
+<!-- Оформление заказа -->
+<div class="modal" id="checkout" role="dialog" aria-modal="true">
+  <div class="mbox cut">
+    <div class="m-head"><h2>Оформление заказа</h2><button class="x" data-close aria-label="Закрыть">×</button></div>
+    <div id="coForm">
+      <div class="notice cut" style="margin-top:22px">Цены — рекомендованные розничные «1С». Финальную стоимость менеджер укажет в счёте. Электронные поставки отправляются только на e-mail.</div>
+      <div class="m-grid">
+        <div>
+          <div class="stp" data-step="1"><div class="stp-h"><span class="n">1</span><h4>Товары в заказе</h4><a data-edit="1">изменить</a></div>
+            <div class="stp-s" id="s1sum"></div>
+            <div class="stp-b"><table class="otab"><thead><tr><th>Наименование</th><th>Артикул</th><th>Цена</th><th>Кол-во</th><th>Сумма</th></tr></thead><tbody id="otab"></tbody></table>
+              <div class="stp-nav"><span></span><button class="btn btn-primary cut" data-next>Далее</button></div></div></div>
+          <div class="stp" data-step="2"><div class="stp-h"><span class="n">2</span><h4>Способ поставки</h4><a data-edit="2">изменить</a></div>
+            <div class="stp-s" id="s2sum"></div>
+            <div class="stp-b">
+              <div class="dl-info cut" id="dlE"><svg width="28" height="28" viewBox="0 0 30 30" fill="none" stroke="#4B7BA6" stroke-width="2.2" stroke-linejoin="round" style="flex:0 0 28px"><rect x="3" y="7" width="24" height="17"/><path d="M3 8l12 9 12-9"/></svg><div><b>Электронная поставка на e-mail — <span id="dlEn"></span></b><span>Лицензии, пин-коды и ссылки на дистрибутивы придут на e-mail, указанный в шаге 4, после оплаты. Без почты России и курьеров, бесплатно.</span></div></div>
+              <div class="dl-info cut" id="dlS"><svg width="28" height="28" viewBox="0 0 30 30" fill="none" stroke="#4B7BA6" stroke-width="2.2" stroke-linejoin="round" style="flex:0 0 28px"><rect x="4" y="5" width="22" height="8"/><rect x="4" y="17" width="22" height="8"/><path d="M8 9h2M8 21h2"/></svg><div><b>Услуги ИНФОТЕХ — <span id="dlSn"></span></b><span>Аренда сервера и сопровождение подключаются после оплаты счёта. Менеджер согласует дату запуска и перенос баз.</span></div></div>
+              <div id="dlPhys">
+                <div class="dl-sub">Товары с физической поставкой — <span id="dlPn"></span>:</div>
+                <div class="opts">
+                  <label class="opt cut"><input type="radio" name="dlv" value="Курьерская доставка" checked><b>Курьерская доставка</b><span>Стоимость зависит от города и службы доставки</span></label>
+                  <label class="opt cut"><input type="radio" name="dlv" value="Самовывоз из офиса ИНФОТЕХ"><b>Самовывоз</b><span>Из офиса ИНФОТЕХ, бесплатно</span></label>
+                </div>
+                <div id="cityWrap" style="margin-top:14px"><label class="fl" for="city">Город доставки <i>*</i></label><input class="inp" id="city" placeholder="Например: Санкт-Петербург"></div>
+              </div>
+              <label class="check" style="margin-top:14px"><input type="checkbox" id="needInst"> Нужна установка и активация лицензий специалистом ИНФОТЕХ</label>
+            <div class="stp-nav"><button class="btn btn-back cut" data-prev>Назад</button><button class="btn btn-primary cut" data-next>Далее</button></div></div></div>
+          <div class="stp" data-step="3"><div class="stp-h"><span class="n">3</span><h4>Способ оплаты</h4><a data-edit="3">изменить</a></div>
+            <div class="stp-s" id="s3sum"></div>
+            <div class="stp-b"><div class="opts">
+              <label class="opt cut"><input type="radio" name="pay" value="Безналичный расчёт (счёт)" checked><b>Безналичный расчёт</b><span>Счёт на оплату вышлет менеджер на указанные контакты</span></label>
+              <label class="opt cut"><input type="radio" name="pay" value="Онлайн-оплата картой"><b>Картой онлайн</b><span>Оплата на сайте после подтверждения заказа</span></label>
+            </div>
+            <div class="stp-nav"><button class="btn btn-back cut" data-prev>Назад</button><button class="btn btn-primary cut" data-next>Далее</button></div></div></div>
+          <div class="stp" data-step="4"><div class="stp-h"><span class="n">4</span><h4>Информация о покупателе</h4><a data-edit="4">изменить</a></div>
+            <div class="stp-s" id="s4sum"></div>
+            <div class="stp-b"><input type="text" id="hpOrder" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
+            <div class="fgrid">
+              <div class="full"><label class="fl" for="bFio">ФИО <i>*</i></label><input class="inp" id="bFio" autocomplete="name"></div>
+              <div><label class="fl" for="bMail">E-mail <i>*</i> <span style="font-weight:300;color:var(--muted)">— на него придут электронные поставки</span></label><input class="inp" id="bMail" type="email" autocomplete="email"></div>
+              <div><label class="fl" for="bTel">Контактный телефон <i>*</i></label><input class="inp" id="bTel" type="tel" autocomplete="tel" placeholder="+7 (___) ___-__-__" required></div>
+              <div><label class="fl" for="bInn">ИНН</label><input class="inp" id="bInn" inputmode="numeric" placeholder="Для юрлица или ИП"></div>
+              <div><label class="fl" for="bOrg">Наименование организации</label><input class="inp" id="bOrg" placeholder="Для юрлица или ИП"></div>
+              <div class="full"><label class="fl" for="bCom">Комментарий к заказу</label><textarea class="inp" id="bCom" rows="2"></textarea></div>
+            </div>
+            <div class="stp-nav"><button class="btn btn-back cut" data-prev>Назад</button><span style="font-size:12.5px;color:var(--muted);align-self:center">Проверьте данные и нажмите «Оформить заказ»</span></div></div></div>
+          <p style="font-size:12px;color:var(--muted);margin-top:10px">Отправляя форму, вы даёте согласие на <a href="../../privacy.html" target="_blank" style="color:var(--slate);border-bottom:1px solid">обработку персональных данных</a>.</p>
+        </div>
+        <aside class="sumbox cut">
+          <div class="r"><span>Товаров на:</span><span id="smGoods">0 ₽</span></div>
+          <div class="r"><span>Поставка:</span><span id="smDlv">—</span></div>
+          <div class="big"><span>Итого:</span><b id="smTotal">0 ₽</b></div>
+          <div class="tot-note" id="smNote"></div>
+          <button class="btn btn-primary cut" id="placeOrder" disabled>Оформить заказ</button>
+        </aside>
+      </div>
+    </div>
+    <div class="done-screen" id="coDone">
+      <svg width="64" height="64" viewBox="0 0 64 64"><polygon points="32,4 56,18 56,46 32,60 8,46 8,18" fill="#4B7BA6"/><path d="M21 33l8 8 15-17" fill="none" stroke="#F5FBFF" stroke-width="4"/></svg>
+      <h3 id="doneTitle">Заказ сформирован</h3>
+      <p id="doneLead"></p>
+      <pre class="cut" id="doneText"></pre>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn btn-light cut" id="copyOrder">Скопировать заказ</button><button class="btn btn-primary cut" data-close>Вернуться на сайт</button></div>
+    </div>
+  </div>
+</div>
+
+<script>window.ROOT="../../";</script>
+<script src="../../catalog.js"></script>
+<script src="../../assets/site.js"></script>
+</body>
+</html>

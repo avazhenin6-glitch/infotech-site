@@ -1,0 +1,26 @@
+<!-- Шапка -->
+<header>
+  <div class="wrap nav">
+    <a href="{{HOME}}" aria-label="ИНФОТЕХ — на главную"><img src="{{R}}logo-light-s.png" alt="ИНФОТЕХ"></a>
+    <div class="hsearch" id="hsearch">
+      <label class="search cut"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#4B7BA6" stroke-width="2.4"><circle cx="8.5" cy="8.5" r="6"/><path d="M13 13l5 5"/></svg><input id="hq" placeholder="Поиск программ 1С по прайсу…" autocomplete="off" aria-label="Быстрый поиск по каталогу"></label>
+      <div class="sugg" id="hsugg"></div>
+    </div>
+    <ul id="menu">
+      <li><a href="{{HOME}}#about"{{NAV_about}}>О компании</a></li>
+      <li><a href="{{R}}uslugi/"{{NAV_uslugi}}>Услуги</a></li>
+      <li><a href="{{R}}uslugi/arenda-servera-1c/"{{NAV_rent}}>Аренда серверов</a></li>
+      <li><a href="{{R}}magazin-1c/"{{NAV_shop}}>Магазин 1С</a></li>
+      <li><a href="{{R}}uslugi/soprovozhdenie-1c/"{{NAV_support}}>Сопровождение</a></li>
+      <li><a href="#contact">Контакты</a></li>
+    </ul>
+    <div class="nav-r">
+      <a href="#contact" class="btn btn-primary cut">Оставить заявку</a>
+      <button class="cart-btn" id="cartBtn" aria-label="Корзина">
+        <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"><path d="M3 10h22l-3 13H6z"/><path d="M9 10l5-7 5 7M11 15v4M17 15v4"/></svg>
+        <b id="cartCount">0</b>
+      </button>
+    <button class="burger" aria-label="Меню" onclick="document.getElementById('menu').classList.toggle('open')"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+</header>

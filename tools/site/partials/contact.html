@@ -1,0 +1,27 @@
+<!-- Контакты -->
+<section class="contact" id="contact">
+  <div class="wrap contact-grid">
+    <div class="rv">
+      <div class="kicker"><svg viewBox="0 0 14 18"><path d="M2 2l9 7-9 7" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/></svg>Связаться</div>
+      <h2>{{CONTACT_TITLE}}</h2>
+      <p>Оставьте заявку — проведём бесплатную консультацию и предложим решение, которое закроет задачу целиком: от сервера до бизнес-логики.</p>
+      <div class="cinfo">
+        <div><i></i><a href="tel:+78129286884">8 (812) 928-68-84</a></div>
+        <div><i></i><a href="mailto:info@pbk.spb.ru">info@pbk.spb.ru</a></div>
+        <div><i></i>Пн–Пт, 9:00–18:00</div>
+      </div>
+    </div>
+    <form class="req cut rv" id="reqForm" data-service="{{SERVICE}}"><input type="text" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
+      <div class="row">
+        <input class="inp" name="name" placeholder="Имя" required>
+        <input class="inp" name="phone" type="tel" placeholder="+7 (___) ___-__-__" required aria-label="Телефон (обязательно)">
+      </div>
+      <input class="inp" name="company" placeholder="Компания">
+      <textarea class="inp" name="msg" id="msg" rows="4" placeholder="Задача: например, перенести 1С на сервер и настроить обмен с Битрикс24"></textarea>
+      <button class="btn btn-primary cut" type="submit">Отправить заявку
+        <svg class="arrow" viewBox="0 0 18 12"><path d="M0 6h15M10 1l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
+      <p class="fine">Нажимая кнопку, вы соглашаетесь на <a href="{{R}}privacy.html" style="color:var(--slate);border-bottom:1px solid">обработку персональных данных</a>.</p>
+      <div class="ok cut" id="ok"></div>
+    </form>
+  </div>
+</section>
