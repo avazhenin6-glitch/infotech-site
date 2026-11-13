@@ -360,13 +360,14 @@ def src_site(sup, limit, fetch, probe=False, probe_url=None):
     allowed = lambda u: rp.can_fetch(UA, u)
     prod_re = re.compile(sup.get('product_url_regex') or r'/(catalog|product|products|goods|item|tovar|p)/[^?#]+', re.I)
     inc = [re.compile(x, re.I) for x in sup.get('include_categories', [])]
-    report = {'robots_found': bool(robots), 'crawl_delay': cd, 'sitemaps': [], 'candidates': 0, 'samples': []}
+    report = {'robots_found': bool(robots), 'crawl_delay': cd, 'robots_txt': robots.splitlines()[:40] if probe else None,
+              'sitemaps': [], 'sitemaps_read': [], 'urls_in_sitemaps': 0, 'sample_urls': [], 'candidates': 0, 'samples': []}
 
     def urls_from_sitemaps():
         maps = list(sup.get('sitemaps') or rp.site_maps() or [base + '/sitemap.xml'])
         report['sitemaps'] = maps[:10]
         seen_maps, out = set(), []
-        while maps and len(seen_maps) < 30 and len(out) < 50000:
+        while maps and len(seen_maps) < (8 if probe else 30) and len(out) < 50000:
             m = maps.pop(0)
             if m in seen_maps or not allowed(m):
                 continue
@@ -381,6 +382,10 @@ def src_site(sup, limit, fetch, probe=False, probe_url=None):
                 if el.tag.endswith('loc') and el.text:
                     u = el.text.strip()
                     (maps if root.tag.endswith('sitemapindex') else out).append(u)
+        report['sitemaps_read'] = sorted(seen_maps)[:40]
+        report['urls_in_sitemaps'] = len(out)
+        step = max(1, len(out) // 30)
+        report['sample_urls'] = out[::step][:30]
         return out
 
     def urls_from_start():
