@@ -589,3 +589,23 @@ document.querySelectorAll('input[type=tel],input[name=phone]').forEach(el=>{
 const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12});
 document.querySelectorAll('.rv').forEach((el,i)=>{el.style.transitionDelay=(i%4)*70+'ms';io.observe(el)});
 document.querySelectorAll('#menu a').forEach(a=>a.addEventListener('click',()=>$('menu').classList.remove('open')));
+
+/* ================= Журнал: фильтр по рубрикам и оглавление ================= */
+document.querySelectorAll('.jfilter').forEach(f=>{
+  const sec=f.closest('section');const grid=sec.querySelector('.jgrid');const lim=+(grid&&grid.dataset.jlimit)||0;
+  const empty=sec.querySelector('.jempty');
+  function apply(r){
+    f.querySelectorAll('button').forEach(b=>{const on=b.dataset.r===r;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on)});
+    let n=0;sec.querySelectorAll('.jcard[data-r],.jfeat[data-r]').forEach(c=>{const ok=(r==='all'||c.dataset.r===r)&&(!lim||!c.classList.contains('jcard')||n<lim);if(ok&&c.classList.contains('jcard'))n++;c.hidden=!ok;if(ok)c.classList.add('in')});
+    const ban=sec.querySelector('.jbanner');if(ban)ban.hidden=r!=='all';
+    const any=[...sec.querySelectorAll('.jcard[data-r],.jfeat[data-r]')].some(c=>!c.hidden);if(empty)empty.hidden=any;
+  }
+  f.addEventListener('click',e=>{const b=e.target.closest('button');if(b)apply(b.dataset.r)});
+  const q=new URLSearchParams(location.search).get('r');
+  apply(q&&f.querySelector(`[data-r="${q}"]`)?q:'all');
+});
+if(document.querySelector('.jtoc')&&'IntersectionObserver' in window){
+  const links=[...document.querySelectorAll('.jtoc a')];
+  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)links.forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+e.target.id))}),{rootMargin:'-90px 0px -70% 0px'});
+  document.querySelectorAll('.journal-article-content h2[id]').forEach(h=>io.observe(h));
+}

@@ -40,13 +40,18 @@ cd "$DIR/repo" || exit 1
 STATUS="$ROOT/public/build.txt"
 git fetch -q origin main 2>/tmp/infotech-sync.err || { echo "error fetch \$(date '+%F %T') \$(tail -1 /tmp/infotech-sync.err)" > "\$STATUS"; exit 1; }
 NEW=\$(git rev-parse origin/main); OLD=\$(cat "$DIR/deployed" 2>/dev/null || true)
-[[ "\$NEW" == "\$OLD" && "\${1:-}" != "--force" ]] && exit 0
+TODAY=\$(date +%F); BUILT=\$(cat "$DIR/built-date" 2>/dev/null || true)
+# новая версия, принудительный запуск или новый день (отложенные статьи журнала)
+[[ "\$NEW" == "\$OLD" && "\$TODAY" == "\$BUILT" && "\${1:-}" != "--force" ]] && exit 0
 git reset -q --hard origin/main
+if ! python3 tools/build_site.py >/tmp/infotech-build.log 2>&1; then
+  echo "error build \$(date '+%F %T') \$(tail -1 /tmp/infotech-build.log)" > "\$STATUS"; git reset -q --hard origin/main; exit 1
+fi
 if rsync -a --delete --exclude build.txt public/ "$ROOT/public/" \\
    && rsync -a --exclude config.php --exclude 'data/' app/ "$ROOT/app/" \\
    && rsync -a tools/ "$ROOT/tools/"; then
   find "$ROOT/public" -type d -exec chmod 755 {} + ; find "$ROOT/public" -type f -exec chmod 644 {} +
-  echo "\$NEW" > "$DIR/deployed"
+  echo "\$NEW" > "$DIR/deployed"; echo "\$TODAY" > "$DIR/built-date"
   echo "ok \$(git rev-parse --short HEAD) \$(date '+%F %T') \$(git log -1 --format=%s | head -c 120)" > "\$STATUS"
   echo "deployed \$(git rev-parse --short HEAD)"
 else

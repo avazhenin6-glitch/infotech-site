@@ -105,6 +105,8 @@ server {
     listen 80;
     listen [::]:80;
     server_name $D www.$D;
+    gzip on; gzip_vary on; gzip_comp_level 5; gzip_min_length 1024;
+    gzip_types text/css application/javascript application/json image/svg+xml text/plain application/xml;
     root $ROOT/public;
     index index.html;
 
@@ -120,6 +122,8 @@ server {
     location = / { try_files /index.html =404; add_header Cache-Control "no-cache"; }
     location = /index.html { add_header Cache-Control "no-cache"; }
     location = /catalog.js { add_header Cache-Control "no-cache"; }
+    location /assets/ { expires 30d; access_log off; }
+    location = /journal-posts.json { add_header Cache-Control "no-cache"; }
     location ~* \.(png|jpg|jpeg|svg|webp|ico|woff2?)\$ { expires 7d; access_log off; }
 
     location = /api/submit.php {
