@@ -19,6 +19,13 @@ sys.path.insert(0, SITE)
 from services import SERVICES, GROUPS  # noqa
 
 DOMAIN = 'https://pbk.spb.ru'
+ORG_LD = json.dumps({"@context": "https://schema.org", "@type": "Organization",
+    "name": "ИНФОТЕХ", "legalName": "ООО «Информационные технологии»", "alternateName": ["ООО «ИНФОТЕХ»", "Информационные технологии"],
+    "url": DOMAIN + "/", "logo": DOMAIN + "/logo-light-s.png", "email": "info@pbk.spb.ru", "telephone": "+7-812-928-68-84",
+    "taxID": "7811653356", "identifier": "ОГРН 1177847218977",
+    "address": {"@type": "PostalAddress", "postalCode": "188680", "addressRegion": "Ленинградская область",
+                "addressLocality": "д. Токкари, Всеволожский р-н", "streetAddress": "ул. Центральная, д. 14Г", "addressCountry": "RU"}},
+    ensure_ascii=False)
 ICONS = json.load(open(os.path.join(SITE, 'icons.json'), encoding='utf-8'))
 raw = open(os.path.join(PUB, 'catalog.js'), encoding='utf-8').read()
 CAT = json.loads(raw[raw.index('window.CATALOG=') + 15:].rstrip(';\n '))
@@ -35,9 +42,8 @@ def icon(k, cls='ic', stroke='#4B7BA6'):
     return f'<svg class="{cls}" viewBox="0 0 48 48" fill="none" stroke="{stroke}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">{ICONS.get(k, "")}</svg>'
 
 def page(path, title, desc, body, nav='', service='', contact_title='Обсудим вашу IT-инфраструктуру'):
-    depth = path.count('/')
-    R = '../' * depth
-    HOME = R or './'
+    R = '/'          # все ссылки от корня сайта: одинаково работают на любой странице
+    HOME = '/'
     out = f'''<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -52,6 +58,7 @@ def page(path, title, desc, body, nav='', service='', contact_title='Обсуд�
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{R}assets/site.css">
+<script type="application/ld+json">{ORG_LD}</script>
 </head>
 <body>
 {part('header')}
@@ -67,7 +74,7 @@ def page(path, title, desc, body, nav='', service='', contact_title='Обсуд�
 '''
     for k in ['about', 'uslugi', 'rent', 'shop', 'support']:
         out = out.replace('{{NAV_%s}}' % k, ' aria-current="page"' if k == nav else '')
-    out = (out.replace('{{R}}', R).replace('{{HOME}}', HOME).replace('{{SERVICE}}', E(service))
+    out = (out.replace('{ORG_LD}', ORG_LD).replace('{{R}}', R).replace('{{HOME}}', HOME).replace('{{SERVICE}}', E(service))
               .replace('{{CONTACT_TITLE}}', E(contact_title)))
     full = os.path.join(PUB, path)
     os.makedirs(os.path.dirname(full), exist_ok=True)
@@ -151,7 +158,7 @@ built = []
 # ---------- главная ----------
 dirs = ''
 for gk, gn, gd in GROUPS:
-    items = ''.join(f'<li><a href="uslugi/{s["slug"]}/">{icon(s["icon"], "mini")}<span><b>{E(s["title"])}</b><small>{E(s["short"])}</small></span></a></li>'
+    items = ''.join(f'<li><a href="/uslugi/{s["slug"]}/">{icon(s["icon"], "mini")}<span><b>{E(s["title"])}</b><small>{E(s["short"])}</small></span></a></li>'
                     for s in SERVICES if s['group'] == gk)
     dirs += f'<div class="dir outline cut rv"><div class="inner cut"><h3>{E(gn)}</h3><p>{E(gd)}</p><ul>{items}</ul></div></div>'
 home_dirs = f'''<section id="napravleniya" style="background:#fff">
@@ -159,7 +166,7 @@ home_dirs = f'''<section id="napravleniya" style="background:#fff">
     <div class="sec-head rv"><div>{KICK.format('Направления')}<h2 class="plaque cut-tl">Услуги ИНФОТЕХ</h2></div>
     <p>Три направления, которые закрывают IT-потребности компании целиком: их можно заказать по отдельности или как единый комплекс.</p></div>
     <div class="dirs">{dirs}</div>
-    <div class="hero-cta rv" style="margin-top:28px"><a class="btn btn-primary cut" href="magazin-1c/">Магазин программ 1С {ARROW}</a><a class="btn btn-back cut" href="uslugi/">Все услуги</a></div>
+    <div class="hero-cta rv" style="margin-top:28px"><a class="btn btn-primary cut" href="/magazin-1c/">Магазин программ 1С {ARROW}</a><a class="btn btn-back cut" href="/uslugi/">Все услуги</a></div>
   </div>
 </section>
 '''
@@ -173,14 +180,14 @@ shop = part('shop').replace('<h2 class="plaque cut-tl">Программные п
 built.append(page('magazin-1c/index.html', 'Магазин программ 1С — лицензии, ИТС, сервисы, оборудование | ИНФОТЕХ',
                   'Программы и лицензии 1С по рекомендованным ценам фирмы «1С», электронная поставка на e-mail, 1С:ИТС, 1С:Фреш, сервисы и торговое оборудование. Быстрый поиск и корзина.',
                   phero('Магазин программ 1С', 'Лицензии и программы 1С, отраслевые решения, сервисы, 1С:ИТС и торговое оборудование по рекомендованным ценам фирмы «1С». Электронные поставки — на e-mail.',
-                        crumbs([('Главная', '../'), ('Магазин 1С', '')]),
-                        f'<a class="btn btn-light cut" href="?e=1">Электронная поставка {ARROW}</a><a class="btn btn-ghost" href="../uslugi/litsenzii-1c/">Помощь с выбором</a>') + shop,
+                        crumbs([('Главная', '/'), ('Магазин 1С', '')]),
+                        f'<a class="btn btn-light cut" href="/magazin-1c/?e=1">Электронная поставка {ARROW}</a><a class="btn btn-ghost" href="/uslugi/litsenzii-1c/">Помощь с выбором</a>') + shop,
                   nav='shop', service='Магазин 1С', contact_title='Поможем подобрать программы 1С'))
 
 # ---------- хаб услуг ----------
 hub = ''
 for gk, gn, gd in GROUPS:
-    cards = ''.join(svc_card(s, '../') for s in SERVICES if s['group'] == gk)
+    cards = ''.join(svc_card(s, '/') for s in SERVICES if s['group'] == gk)
     hub += f'''<section id="{gk}" class="hubgrp">
   <div class="wrap">
     <div class="sec-head rv"><div>{KICK.format('Направление')}<h2 class="plaque cut-tl">{E(gn)}</h2></div><p>{E(gd)}</p></div>
@@ -191,14 +198,14 @@ for gk, gn, gd in GROUPS:
 built.append(page('uslugi/index.html', 'Услуги ИНФОТЕХ — 1С, аренда серверов, оборудование',
                   'Все услуги ИНФОТЕХ: лицензии и внедрение 1С, сопровождение, аренда серверов для 1С, резервное копирование, администрирование, поставка оборудования.',
                   phero('Услуги', 'Полный цикл IT-решений для бизнеса: от сервера и рабочих мест до бизнес-логики в 1С. Выберите услугу — на её странице состав работ, порядок и цены.',
-                        crumbs([('Главная', '../'), ('Услуги', '')]),
-                        f'<a class="btn btn-light cut" href="arenda-servera-1c/">Тарифы аренды серверов {ARROW}</a><a class="btn btn-ghost" href="soprovozhdenie-1c/">Сопровождение 1С</a>') + hub,
+                        crumbs([('Главная', '/'), ('Услуги', '')]),
+                        f'<a class="btn btn-light cut" href="/uslugi/arenda-servera-1c/">Тарифы аренды серверов {ARROW}</a><a class="btn btn-ghost" href="/uslugi/soprovozhdenie-1c/">Сопровождение 1С</a>') + hub,
                   nav='uslugi'))
 
 # ---------- страницы услуг ----------
 NAVMAP = {'arenda-servera-1c': 'rent', 'soprovozhdenie-1c': 'support'}
 for s in SERVICES:
-    R = '../../'
+    R = '/'
     gname = next(g[1] for g in GROUPS if g[0] == s['group'])
     btns = f'<a class="btn btn-light cut" href="#contact">Оставить заявку {ARROW}</a>'
     if s.get('cta2'):

@@ -286,8 +286,8 @@ footer a:hover{color:var(--ghost)}
 .stp-h .n{width:28px;height:28px;border-radius:50%;border:2px solid var(--slate);display:grid;place-items:center;font-size:13px;font-weight:600;color:var(--slate);flex:0 0 28px}
 .stp.done .stp-h .n{background:var(--slate);color:var(--ghost)}
 .stp-h h4{font-size:18px;flex:1}
-.stp-h a{font-size:13px;color:var(--slate);border-bottom:1px dashed;cursor:pointer;display:none}
-.stp.done .stp-h a{display:inline}
+.stp-h .edit{font:inherit;font-size:13px;color:var(--slate);background:none;border:0;border-bottom:1px dashed;cursor:pointer;display:none;padding:0}
+.stp.done .stp-h .edit{display:inline}
 .stp-b{display:none;padding:20px}
 .stp.cur .stp-b{display:block}
 .stp-s{display:none;padding:12px 20px;font-size:15px;font-weight:500}
