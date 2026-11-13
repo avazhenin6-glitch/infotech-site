@@ -10,7 +10,7 @@
 <link rel="icon" href="/logo-light-s.png">
 <link rel="preload" href="/assets/fonts/inter-cyrillic-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/inter-cyrillic-600-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/site.css?v=0b1620fc">
+<link rel="stylesheet" href="/assets/site.css?v=a4653526">
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "Organization", "name": "ИНФОТЕХ", "legalName": "ООО «Информационные технологии»", "alternateName": ["ООО «ИНФОТЕХ»", "Информационные технологии"], "url": "https://pbk.spb.ru/", "logo": "https://pbk.spb.ru/logo-light-s.png", "email": "info@pbk.spb.ru", "telephone": "+7-812-928-68-84", "taxID": "7811653356", "identifier": "ОГРН 1177847218977", "address": {"@type": "PostalAddress", "postalCode": "188680", "addressRegion": "Ленинградская область", "addressLocality": "д. Токкари, Всеволожский р-н", "streetAddress": "ул. Центральная, д. 14Г", "addressCountry": "RU"}}</script>
 </head>
 <body>
@@ -225,25 +225,26 @@
   <div class="dr-head"><h3>Моя корзина</h3><button class="x" data-close aria-label="Закрыть">×</button></div>
   <div class="dr-body" id="cartList"></div>
   <div class="dr-foot">
-    <div class="tot"><span>Итого, без НДС</span><b id="cartTotal">0 ₽</b></div>
-    <div class="tot-note" id="cartNote"></div>
+    <div class="tot"><span>В корзине</span><b id="cartTotal">0 шт</b></div>
+    <div class="tot-note" id="cartNote">Окончательную стоимость менеджер укажет в счёте.</div>
     <button class="btn btn-primary cut" id="toCheckout">Оформить заказ</button>
   </div>
 </aside>
 
-<div class="toast cut" id="toast"><p><b>Товар добавлен в корзину</b><span id="toastName"></span></p><button class="btn btn-light cut" id="toastGo">Оформить заказ</button></div>
+<div class="toast cut" id="toast"><p><b>Товар добавлен в корзину</b><span id="toastName"></span></p><button class="btn btn-light cut" id="toastGo">Открыть корзину</button></div>
 
 <!-- Оформление заказа -->
 <div class="modal" id="checkout" role="dialog" aria-modal="true">
   <div class="mbox cut">
     <div class="m-head"><h2>Оформление заказа</h2><button class="x" data-close aria-label="Закрыть">×</button></div>
     <div id="coForm">
-      <div class="notice cut" style="margin-top:22px">Цены — рекомендованные розничные «1С». Финальную стоимость менеджер укажет в счёте. Электронные поставки отправляются только на e-mail.</div>
+      <div class="notice cut" style="margin-top:22px">Окончательную стоимость менеджер укажет в счёте. Количество можно изменить прямо здесь. Электронные поставки отправляются только на e-mail.</div>
       <div class="m-grid">
         <div>
           <div class="stp" data-step="1"><div class="stp-h"><span class="n">1</span><h4>Товары в заказе</h4><button type="button" class="edit" data-edit="1">изменить</button></div>
             <div class="stp-s" id="s1sum"></div>
-            <div class="stp-b"><table class="otab"><thead><tr><th>Наименование</th><th>Артикул</th><th>Цена</th><th>Кол-во</th><th>Сумма</th></tr></thead><tbody id="otab"></tbody></table>
+            <div class="stp-b"><table class="otab"><thead><tr><th>Наименование</th><th>Артикул</th><th>Количество</th><th></th></tr></thead><tbody id="otab"></tbody></table>
+              <a class="addmore" id="addMore" href="/magazin-1c/">+ Добавить ещё товары</a>
               <div class="stp-nav"><span></span><button class="btn btn-primary cut" data-next>Далее</button></div></div></div>
           <div class="stp" data-step="2"><div class="stp-h"><span class="n">2</span><h4>Способ поставки</h4><button type="button" class="edit" data-edit="2">изменить</button></div>
             <div class="stp-s" id="s2sum"></div>
@@ -282,10 +283,10 @@
           <p style="font-size:12px;color:var(--muted);margin-top:10px">Отправляя форму, вы даёте согласие на <a href="/privacy.html" target="_blank" style="color:var(--slate);border-bottom:1px solid">обработку персональных данных</a>.</p>
         </div>
         <aside class="sumbox cut">
-          <div class="r"><span>Товаров на:</span><span id="smGoods">0 ₽</span></div>
+          <div class="r"><span>Позиций:</span><span id="smGoods">0</span></div>
+          <div class="r"><span>Количество:</span><span id="smTotal">0 шт</span></div>
           <div class="r"><span>Поставка:</span><span id="smDlv">—</span></div>
-          <div class="big"><span>Итого:</span><b id="smTotal">0 ₽</b></div>
-          <div class="r" style="font-size:12.5px"><span>НДС не облагается (УСН)</span></div>
+          <p class="smprice">Окончательную стоимость менеджер укажет в счёте. НДС не облагается (УСН).</p>
           <div class="tot-note" id="smNote"></div>
           <button class="btn btn-primary cut" id="placeOrder" disabled>Оформить заказ</button>
         </aside>
@@ -303,6 +304,6 @@
 
 <script>window.ROOT="/";</script>
 <script src="/catalog.js?v=0aa2c717"></script>
-<script src="/assets/site.js?v=0087a52a"></script>
+<script src="/assets/site.js?v=081d8b28"></script>
 </body>
 </html>

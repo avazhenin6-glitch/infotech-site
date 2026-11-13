@@ -70,7 +70,7 @@ if (!empty($_GET['id'])) {
         $f('Дата', $r['created_at']) . $f('Клиент', $r['name']) . $f('E-mail', $r['email']) . $f('Телефон', $r['phone']) . $f('ИНН', $r['inn']) . $f('Организация', $r['company']) .
         $f('Поставка', $r['delivery']) . $f('Оплата', $r['payment']) . $f('Комментарий', $r['comment']) .
         ($items ? '<table><tr><th>Наименование</th><th>Артикул</th><th class="r">Кол-во</th><th class="r">Цена</th><th class="r">Сумма</th></tr>' . $rows .
-        '<tr><td colspan="4"><b>Итого</b></td><td class="r"><b>' . money_rub((float)$r['total_rub']) . ($r['total_usd'] > 0 ? ' + ' . money_usd((float)$r['total_usd']) : '') . '</b></td></tr></table>' : '') .
+        '<tr><td colspan="4"><b>Итого по прайсу (ориентир для счёта)</b></td><td class="r"><b>' . money_rub((float)$r['total_rub']) . ($r['total_usd'] > 0 ? ' + ' . money_usd((float)$r['total_usd']) : '') . '</b></td></tr></table>' : '') .
         '</div><form method="post" class="card"><input type="hidden" name="csrf" value="' . $csrf . '"><input type="hidden" name="id" value="' . (int)$r['id'] . '">' .
         '<label>Статус<select name="status">' . $opts . '</select></label><label>Заметка менеджера<textarea name="note" rows="3">' . h($r['manager_note']) . '</textarea></label><button>Сохранить</button></form>';
     page($r['number'], $html);

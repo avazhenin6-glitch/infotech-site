@@ -99,21 +99,24 @@ $pdo->prepare('UPDATE orders SET number=? WHERE id=?')->execute([$number, $id]);
 $lines = array_map(fn($i) => "• {$i['name']} (арт. {$i['code']}) — {$i['qty']} шт × "
     . ($i['cur'] === 'USD' ? money_usd($i['price']) : money_rub($i['price'])) . ($i['e'] === 1 ? ' [e-mail]' : ($i['e'] === 2 ? ' [услуга]' : '')), $items);
 $total = money_rub($rub) . ($usd ? ' + ' . money_usd($usd) . ' (по курсу ЦБ)' : '');
-$body = implode("\n", $lines) . "\n\nИтого: {$total} (без НДС, УСН)\nПоставка: {$delivery}\nОплата: {$payment}";
+$body = implode("\n", $lines) . "\n\nОриентир по прайсу (РРЦ «1С» / тарифы): {$total} — покупателю не показывается, сумму укажите в счёте\nПоставка: {$delivery}\nОплата: {$payment}";
+// Покупателю — без цен: окончательную стоимость менеджер укажет в счёте
+$custLines = array_map(fn($i) => "• {$i['name']} (арт. {$i['code']}) — {$i['qty']} шт" . ($i['e'] === 1 ? ' [e-mail]' : ($i['e'] === 2 ? ' [услуга]' : '')), $items);
+$custBody = implode("\n", $custLines) . "\n\nСтоимость: менеджер укажет в счёте (НДС не облагается, УСН)\nПоставка: {$delivery}\nОплата: {$payment}";
 $buyer = "Покупатель: {$name}\nE-mail: {$email}\nТелефон: {$phone}" . ($inn ? "\nИНН: {$inn}" : '') . ($company ? "\nОрганизация: {$company}" : '') . ($comment ? "\nКомментарий: {$comment}" : '');
 
 $managerText = "Новый заказ {$number}\n\n{$body}\n\n{$buyer}\n\n" . cfg('site_url') . "/admin/?id={$id}";
-send_mail((string)cfg('notify_emails'), "Заказ {$number} — {$total}", $managerText);
+send_mail((string)cfg('notify_emails'), "Заказ {$number}", $managerText);
 // В Telegram — состав и сумма без персональных данных покупателя
 send_telegram("Новый заказ {$number}\n\n{$body}" . ($company ? "\nОрганизация: {$company}" : '') . "\n\n" . cfg('site_url') . "/admin/?id={$id}");
 
 if (cfg('send_customer_copy')) {
-    $cust = "Здравствуйте, {$name}!\n\nСпасибо за заказ в " . cfg('site_name') . ". Номер заказа: {$number}.\n\n{$body}\n\n"
+    $cust = "Здравствуйте, {$name}!\n\nСпасибо за заказ в " . cfg('site_name') . ". Номер заказа: {$number}.\n\n{$custBody}\n\n"
           . "Менеджер свяжется с вами, уточнит детали и пришлёт счёт.\n"
           . ($eCount ? "Электронные лицензии и пин-коды придут на этот e-mail после оплаты.\n" : '')
           . ($sCount ? "Аренда сервера и сопровождение подключаются после оплаты — менеджер согласует дату запуска.\n" : '')
-          . "\nЦены указаны по рекомендованному прайс-листу фирмы «1С»; окончательная сумма — в счёте.\n\n" . cfg('site_name') . "\n" . cfg('site_url');
+          . "\n" . cfg('site_name') . "\n" . cfg('site_url');
     send_mail($email, "Ваш заказ {$number} принят — " . cfg('site_name'), $cust);
 }
 
-json_out(['ok' => true, 'number' => $number, 'total_rub' => $rub, 'total_usd' => $usd]);
+json_out(['ok' => true, 'number' => $number]);

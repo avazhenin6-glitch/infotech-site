@@ -266,11 +266,12 @@ function renderShop(focus){if(!SHOP)return;
   $('plist').innerHTML=show.length?show.map(p=>`<div class="prow cut">
     <div><h4>${st.q?hl(p.n,st.q):esc(p.n)}</h4><div class="meta"><span>Артикул: ${esc(p.code)}</span>${KIND_TAG(p)}${st.c<0||st.q?`<span>${CAT.cats[p.c].s[p.s]}</span>`:''}</div></div>
     <div class="pr">${money(p)}${p.cur==='$'?'<span class="usd">оплата в ₽ по курсу ЦБ</span>':''}</div>
-    <button class="btn btn-primary cut${cart[p.code]?' added':''}" data-add="${esc(p.code)}">${cart[p.code]?'В корзине · '+cart[p.code]:'В корзину'}</button>
+    ${cart[p.code]?qtyCtl(p.code,cart[p.code],'pq'):`<button class="btn btn-primary cut" data-add="${esc(p.code)}">В корзину</button>`}
   </div>`).join(''):'<div class="empty">Ничего не найдено — попробуйте другой запрос или <a href="#contact" style="color:var(--slate);border-bottom:1px solid">напишите нам</a>.</div>';
   $('moreBtn').parentElement.style.display=L.length>show.length?'flex':'none';
   $('moreBtn').textContent=`Показать ещё (осталось ${L.length-show.length})`;
   $('plist').querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>addToCart(b.dataset.add));
+  bindQty($('plist'));
   document.querySelectorAll('#crumbs [data-home]').forEach(a=>a.onclick=()=>go(-1,-1));
   document.querySelectorAll('#crumbs [data-cat]').forEach(a=>a.onclick=()=>go(+a.dataset.cat,-1));
 }
@@ -285,6 +286,16 @@ function cartTotals(){
   return{rubS,usdS,count,eN,pN,sN};
 }
 const totalText=t=>rub(t.rubS)+(t.usdS?' + '+usd(t.usdS):'');
+const unitsOf=n=>n+' шт';
+const pos=n=>n+' '+(n%10===1&&n%100!==11?'позиция':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20))?'позиции':'позиций');
+function qtyCtl(id,q,cls){return`<div class="qty ${cls||''}"><button type="button" class="cut" data-dec="${esc(id)}" aria-label="Уменьшить">−</button><input value="${q}" data-q="${esc(id)}" inputmode="numeric" aria-label="Количество"><button type="button" class="cut" data-inc="${esc(id)}" aria-label="Увеличить">+</button></div>`}
+function setQty(id,q){q=Math.max(0,Math.min(9999,q|0));if(q)cart[id]=q;else delete cart[id];saveCart();updateCart();renderShop();if($('checkout').classList.contains('on')){if(Object.keys(cart).length)renderCheckout();else{closeAll();openCart()}}}
+function bindQty(root){
+  root.querySelectorAll('[data-inc]').forEach(b=>b.onclick=()=>setQty(b.dataset.inc,(cart[b.dataset.inc]||0)+1));
+  root.querySelectorAll('[data-dec]').forEach(b=>b.onclick=()=>setQty(b.dataset.dec,(cart[b.dataset.dec]||0)-1));
+  root.querySelectorAll('[data-q]').forEach(i=>{i.onchange=()=>setQty(i.dataset.q,parseInt(i.value)||0);i.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();i.blur()}}});
+  root.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>setQty(b.dataset.del,0));
+}
 let toastT;
 function addToCart(id){
   cart[id]=(cart[id]||0)+1;saveCart();updateCart();renderShop();
@@ -299,16 +310,11 @@ function updateCart(){
   $('cartList').innerHTML=ids.length?ids.map(id=>{const p=P(id),q=cart[id];return`<div class="citem">
       <h5>${esc(p.n)}<br><small style="font-weight:300;color:#6a8397">Артикул: ${esc(p.code)} · ${KIND(p).toLowerCase()}</small></h5>
       <button class="del" data-del="${esc(id)}" aria-label="Удалить">×</button>
-      <div class="qty"><button class="cut" data-dec="${esc(id)}">−</button><input value="${q}" data-q="${esc(id)}" inputmode="numeric" aria-label="Количество"><button class="cut" data-inc="${esc(id)}">+</button></div>
-      <div class="sum">${money(p,q)}</div></div>`}).join('')
+      ${qtyCtl(id,q)}</div>`}).join('')
     :'<div class="empty">Корзина пуста.<br><a href="${ROOT}magazin-1c/" style="color:var(--slate);border-bottom:1px solid">Перейти в магазин</a></div>';
-  $('cartTotal').textContent=totalText(t);
-  $('cartNote').textContent=t.usdS?'Оборудование в долларах оплачивается в рублях по курсу ЦБ на день оплаты':'';
+  $('cartTotal').textContent=`${pos(ids.length)} · ${unitsOf(t.count)}`;
   $('toCheckout').disabled=!ids.length;$('toCheckout').style.opacity=ids.length?1:.45;
-  $('cartList').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{delete cart[b.dataset.del];saveCart();updateCart();renderShop()});
-  $('cartList').querySelectorAll('[data-inc]').forEach(b=>b.onclick=()=>{cart[b.dataset.inc]++;saveCart();updateCart();renderShop()});
-  $('cartList').querySelectorAll('[data-dec]').forEach(b=>b.onclick=()=>{cart[b.dataset.dec]--;saveCart();updateCart();renderShop()});
-  $('cartList').querySelectorAll('[data-q]').forEach(i=>i.onchange=()=>{cart[i.dataset.q]=Math.max(0,parseInt(i.value)||0);saveCart();updateCart();renderShop()});
+  bindQty($('cartList'));
   $('cartList').querySelectorAll('[data-close]').forEach(a=>a.onclick=closeAll);
 }
 function openCart(){$('toast').classList.remove('on');$('drawer').classList.add('on');$('ovl').classList.add('on')}
@@ -316,8 +322,9 @@ function closeAll(){$('drawer').classList.remove('on');$('ovl').classList.remove
 $('cartBtn').onclick=openCart;$('ovl').onclick=closeAll;
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',closeAll));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAll()});
-$('toastGo').onclick=()=>{$('toast').classList.remove('on');openCheckout()};
+$('toastGo').onclick=()=>{$('toast').classList.remove('on');openCart()};
 $('toCheckout').onclick=openCheckout;
+$('addMore').onclick=e=>{if(SHOP){e.preventDefault();closeAll()}};
 
 /* оформление по шагам */
 let step=1,doneSteps=new Set();
@@ -329,7 +336,6 @@ function openCheckout(){
   $('checkout').classList.add('on');document.body.style.overflow='hidden';$('checkout').scrollTop=0;
 }
 const val=n=>document.querySelector(`input[name=${n}]:checked`).value;
-const pos=n=>n+' '+(n%10===1&&n%100!==11?'позиция':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20))?'позиции':'позиций');
 function dlvText(){
   const t=cartTotals(),parts=[];
   if(t.eN)parts.push('электронная поставка на e-mail');
@@ -340,20 +346,21 @@ function dlvText(){
 }
 function renderCheckout(){
   const t=cartTotals();
-  $('otab').innerHTML=Object.entries(cart).map(([id,q])=>{const p=P(id);return`<tr><td>${esc(p.n)}<br><small style="color:#6a8397">${KIND(p)}</small></td><td>${esc(p.code)}</td><td>${money(p)}</td><td>${q} шт</td><td><b>${money(p,q)}</b></td></tr>`}).join('');
+  $('otab').innerHTML=Object.entries(cart).map(([id,q])=>{const p=P(id);return`<tr><td>${esc(p.n)}<br><small style="color:#6a8397">${KIND(p)}</small></td><td>${esc(p.code)}</td><td>${qtyCtl(id,q)}</td><td><button type="button" class="del" data-del="${esc(id)}" aria-label="Удалить">×</button></td></tr>`}).join('');
+  bindQty($('otab'));
   document.querySelectorAll('.stp').forEach(el=>{const n=+el.dataset.step;el.classList.toggle('cur',n===step);el.classList.toggle('done',doneSteps.has(n))});
   $('dlE').style.display=t.eN?'flex':'none';$('dlEn').textContent=pos(t.eN);
   $('dlS').style.display=t.sN?'flex':'none';$('dlSn').textContent=pos(t.sN);
   $('dlPhys').style.display=t.pN?'block':'none';$('dlPn').textContent=pos(t.pN);
   $('cityWrap').style.display=t.pN&&val('dlv').startsWith('Курьер')?'block':'none';
-  $('s1sum').textContent=`${t.count} шт · ${totalText(t)}`;
+  $('s1sum').textContent=`${pos(Object.keys(cart).length)} · ${unitsOf(t.count)}`;
   $('s2sum').textContent=dlvText();
   $('s3sum').textContent=val('pay');
   $('s4sum').textContent=[$('bFio').value,$('bMail').value,$('bTel').value,$('bOrg').value].filter(Boolean).join(' · ');
-  $('smGoods').textContent=totalText(t);
+  $('smGoods').textContent=Object.keys(cart).length;
   $('smDlv').textContent=!t.pN?(t.eN?'e-mail, бесплатно':'не требуется'):val('dlv').startsWith('Самовывоз')?'бесплатно':'по тарифу';
-  $('smTotal').textContent=totalText(t);
-  $('smNote').textContent=t.usdS?'Сумма в $ — оплата в рублях по курсу ЦБ':'';
+  $('smTotal').textContent=unitsOf(t.count);
+  $('smNote').textContent='';
   $('placeOrder').disabled=step!==4;
 }
 function validStep(n){
@@ -382,8 +389,8 @@ async function postJSON(data){
 $('placeOrder').onclick=async()=>{
   if(!validStep(4))return;doneSteps.add(4);
   const t=cartTotals();
-  const lines=Object.entries(cart).map(([id,q])=>{const p=P(id);return`• ${p.n} (арт. ${p.code}) — ${q} шт × ${money(p)}${p.e===1?' [e-mail]':p.e===2?' [услуга]':''}`});
-  const txtBody=`${lines.join('\n')}\n\nТоваров на: ${totalText(t)}${t.usdS?' (сумма в $ — по курсу ЦБ)':''}\nПоставка: ${dlvText()}\nОплата: ${val('pay')}\n\nПокупатель: ${$('bFio').value}\nE-mail для электронной поставки: ${$('bMail').value}\nТелефон: ${$('bTel').value}${$('bInn').value?'\nИНН: '+$('bInn').value:''}${$('bOrg').value?'\nОрганизация: '+$('bOrg').value:''}${$('bCom').value?'\nКомментарий: '+$('bCom').value:''}`;
+  const lines=Object.entries(cart).map(([id,q])=>{const p=P(id);return`• ${p.n} (арт. ${p.code}) — ${q} шт${p.e===1?' [e-mail]':p.e===2?' [услуга]':''}`});
+  const txtBody=`${lines.join('\n')}\n\nСтоимость: менеджер укажет в счёте\nПоставка: ${dlvText()}\nОплата: ${val('pay')}\n\nПокупатель: ${$('bFio').value}\nE-mail для электронной поставки: ${$('bMail').value}\nТелефон: ${$('bTel').value}${$('bInn').value?'\nИНН: '+$('bInn').value:''}${$('bOrg').value?'\nОрганизация: '+$('bOrg').value:''}${$('bCom').value?'\nКомментарий: '+$('bCom').value:''}`;
   const btn=$('placeOrder');btn.disabled=true;btn.textContent='Отправляем…';$('smNote').textContent='';
   let no,demo=false;$('smNote').style.color='';
   try{

@@ -623,3 +623,13 @@ mark{background:var(--sky);color:inherit;padding:0 1px}
   .hsearch .search{width:100%}
   .nav-r{margin-left:auto}
 }
+/* количество в карточке товара и в оформлении */
+.qty.pq{justify-self:end}
+.qty.pq button{width:40px;height:44px;font-size:18px}
+.qty.pq input{width:56px;height:44px;font-size:16px;font-weight:500}
+.otab .qty{justify-content:flex-end}
+.otab .del{background:none;border:0;color:#6a8397;font-size:22px;line-height:1;cursor:pointer;padding:2px 4px}
+.otab .del:hover{color:#b5452f}
+.addmore{display:inline-block;margin-top:14px;font-size:14px;font-weight:500;color:var(--slate);border-bottom:1px solid currentColor}
+.smprice{font-size:13px;color:var(--muted);margin-top:14px;line-height:1.5}
+@media(max-width:640px){.otab th:nth-child(2),.otab td:nth-child(2){display:none}}
