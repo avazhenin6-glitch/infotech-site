@@ -18,7 +18,6 @@ if (empty($_SESSION['mgr'])) {
             lk_db()->prepare('DELETE FROM hits WHERE ip=?')->execute(['mgr:' . client_ip()]);   // считаем только неудачные попытки
             session_regenerate_id(true); $_SESSION['mgr'] = 1; $_SESSION['staff'] = (int)$st['id'];
             staff_db()->prepare('UPDATE staff SET last_login=?, last_seen=? WHERE id=?')->execute([date('Y-m-d H:i:s'), date('Y-m-d H:i:s'), $st['id']]);
-            if (!$st['phone'] && !$st['position']) { lk_flash('Заполните, пожалуйста, свой профиль: ФИО, должность, телефон, дату рождения'); lk_redirect('/lk/admin/?me=1'); }
             lk_redirect('/lk/admin/');
         } else $err = 'Неверный логин или пароль';
     }
@@ -27,6 +26,11 @@ if (empty($_SESSION['mgr'])) {
         . '<p class="muted">Вход для сотрудников ИНФОТЕХ. Учётные записи выдаёт администратор.</p></div>');
 }
 unset($_SESSION['as']);   // в кабинете менеджера — не «от имени клиента»
+/* обязательный профиль: без ФИО, должности, телефона, даты рождения, e-mail и их подтверждения — только «Мой профиль» */
+if (($me0 = staff_me()) && staff_missing($me0)) {
+    $okPost = $_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['act'] ?? '', ['me_save', 'me_pass', 'me_code', 'me_verify'], true);
+    if (!$okPost && !isset($_GET['me'])) { if (empty($_SESSION['flash'])) lk_flash('Заполните и подтвердите профиль — без этого работа в кабинете недоступна. Осталось: ' . implode(', ', staff_missing($me0)), 'wait'); lk_redirect('/lk/admin/?me=1'); }
+}
 require APP_DIR . '/lk_admin_services.php';
 require APP_DIR . '/lk_admin_payments.php';
 require APP_DIR . '/lk_admin_billing.php';
@@ -40,7 +44,10 @@ function mgr_page(string $title, string $body): never {
     echo '<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">'
         . '<title>' . h($title) . ' — менеджер ИНФОТЕХ</title><link rel="stylesheet" href="/assets/lk.css?v=' . @filemtime(PUBLIC_DIR . '/assets/lk.css') . '"></head><body class="lk mgr">'
         . '<aside class="side"><a class="brand" href="/lk/admin/"><img src="/logo-light-s.png" alt="ИНФОТЕХ" height="34"></a><div class="who"><b>' . h($me ? ($me['name'] ?: $me['login']) : 'Кабинет менеджера') . '</b>' . ($me && $me['position'] ? '<br><small>' . h($me['position']) . '</small>' : '') . '</div><nav>' . $nav . '</nav></aside>'
-        . '<main class="work">' . $bd . lk_flash() . $body . '</main></body></html>';
+        . '<main class="work">' . $bd . lk_flash() . $body . '</main>'
+        . '<script>document.querySelectorAll(\'input[type=tel]\').forEach(function(i){function f(){var d=i.value.replace(/\\D/g,"");if(d[0]==="8"||d[0]==="7")d=d.slice(1);d=d.slice(0,10);var s="+7 (";if(d.length)s+=d.slice(0,3);if(d.length>=3)s+=") "+d.slice(3,6);if(d.length>=6)s+="-"+d.slice(6,8);if(d.length>=8)s+="-"+d.slice(8,10);i.value=s}'
+        . 'i.addEventListener("focus",function(){if(!i.value)i.value="+7 ("});i.addEventListener("input",f);i.addEventListener("keydown",function(e){if((e.key==="Backspace"||e.key==="Delete")&&i.value.length<=4)e.preventDefault()});i.addEventListener("blur",function(){if(i.value.replace(/\\D/g,"").length<=1)i.value=""});if(i.value)f()});</script>'
+        . '</body></html>';
     exit;
 }
 function mail_client(array $o, string $subject, string $text, ?array $att = null): void {

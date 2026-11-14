@@ -18,6 +18,9 @@ function staff_db(): PDO {
         file TEXT, fname TEXT, mime TEXT, size INTEGER, created_at TEXT)");
     $pdo->exec("CREATE INDEX IF NOT EXISTS staff_msgs_room ON staff_msgs(room, id)");
     $pdo->exec("CREATE TABLE IF NOT EXISTS staff_reads (staff_id INTEGER, room TEXT, last_id INTEGER, PRIMARY KEY(staff_id, room))");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS staff_codes (staff_id INTEGER, kind TEXT, target TEXT, code_hash TEXT, until INTEGER, tries INTEGER DEFAULT 0, sent_at INTEGER, PRIMARY KEY(staff_id, kind))");
+    $cols = array_column($pdo->query('PRAGMA table_info(staff)')->fetchAll(), 'name');
+    foreach (['email_verified' => 'TEXT', 'phone_verified' => 'TEXT'] as $c => $t) if (!in_array($c, $cols, true)) $pdo->exec("ALTER TABLE staff ADD COLUMN $c $t");
     $done = true;
     return $pdo;
 }
@@ -149,4 +152,51 @@ function chat_msg_json(array $m, int $me): array {
     return ['id' => (int)$m['id'], 'mine' => (int)$m['author_id'] === $me, 'author' => $m['name'] ?: ($m['login'] ?: 'сотрудник'),
             'time' => date('d.m H:i', strtotime($m['created_at'])), 'html' => nl2br($t),
             'file' => $m['file'] ? ['url' => '/lk/admin/?chat_file=' . $m['id'], 'name' => $m['fname'], 'size' => (int)$m['size'], 'img' => str_starts_with((string)$m['mime'], 'image/')] : null];
+}
+
+/* ---------- обязательный профиль и подтверждение контактов ---------- */
+function sms_configured(): bool { $c = cfg('sms'); return is_array($c) && !empty($c['api_id']); }
+function sms_send(string $phone, string $text): bool {   // SMS.ru: https://sms.ru/api/send
+    $c = cfg('sms'); $to = preg_replace('/\D/', '', $phone);
+    $ch = curl_init('https://sms.ru/sms/send?' . http_build_query(['api_id' => $c['api_id'], 'to' => $to, 'msg' => $text, 'json' => 1] + (!empty($c['from']) ? ['from' => $c['from']] : [])));
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10]);
+    $r = json_decode((string)curl_exec($ch), true); curl_close($ch);
+    return ($r['status'] ?? '') === 'OK' && (($r['sms'][$to]['status'] ?? '') === 'OK');
+}
+/* чего не хватает в профиле: [] — можно работать */
+function staff_missing(array $s): array {
+    $m = [];
+    foreach (['name' => 'ФИО', 'position' => 'должность', 'phone' => 'телефон', 'birthday' => 'дата рождения', 'email' => 'e-mail'] as $k => $t) if (trim((string)$s[$k]) === '') $m[] = $t;
+    if ($s['email'] && !$s['email_verified']) $m[] = 'подтверждение e-mail';
+    if ($s['phone'] && !$s['phone_verified'] && sms_configured()) $m[] = 'подтверждение телефона';
+    return $m;
+}
+function staff_send_code(array $s, string $kind): string {   // kind: email | phone
+    $pdo = staff_db(); $target = (string)$s[$kind];
+    if ($target === '') throw new RuntimeException('Сначала укажите и сохраните ' . ($kind === 'email' ? 'e-mail' : 'телефон'));
+    $st = $pdo->prepare('SELECT sent_at FROM staff_codes WHERE staff_id=? AND kind=?'); $st->execute([$s['id'], $kind]);
+    if (($last = (int)$st->fetchColumn()) && time() - $last < 60) throw new RuntimeException('Код уже отправлен, повторить можно через минуту');
+    $code = (string)random_int(100000, 999999);
+    if ($kind === 'email') {
+        if (!send_mail($target, 'Код подтверждения e-mail — ИНФОТЕХ', "Код для подтверждения e-mail в кабинете сотрудника ИНФОТЕХ: $code\nКод действует 15 минут. Если вы его не запрашивали, просто удалите письмо."))
+            throw new RuntimeException('Письмо не отправилось: почта сайта не настроена. Администратор может подтвердить вручную на сервере: php app/cli-staff.php verify ' . $s['login']);
+    } else {
+        if (!sms_configured()) throw new RuntimeException('SMS-сервис не подключён');
+        if (!sms_send($target, "ИНФОТЕХ: код подтверждения $code")) throw new RuntimeException('SMS не отправилось, попробуйте позже');
+    }
+    $pdo->prepare('INSERT OR REPLACE INTO staff_codes (staff_id, kind, target, code_hash, until, tries, sent_at) VALUES (?,?,?,?,?,0,?)')
+        ->execute([$s['id'], $kind, $target, password_hash($code, PASSWORD_DEFAULT), time() + 900, time()]);
+    return $kind === 'email' ? "Код отправлен на $target" : "Код отправлен по SMS на $target";
+}
+function staff_check_code(array $s, string $kind, string $code): void {
+    $pdo = staff_db();
+    $st = $pdo->prepare('SELECT * FROM staff_codes WHERE staff_id=? AND kind=?'); $st->execute([$s['id'], $kind]); $c = $st->fetch();
+    if (!$c || $c['until'] < time() || $c['target'] !== (string)$s[$kind]) throw new RuntimeException('Код устарел — запросите новый');
+    if ($c['tries'] >= 5) throw new RuntimeException('Слишком много попыток — запросите новый код');
+    if (!password_verify(preg_replace('/\D/', '', $code), $c['code_hash'])) {
+        $pdo->prepare('UPDATE staff_codes SET tries=tries+1 WHERE staff_id=? AND kind=?')->execute([$s['id'], $kind]);
+        throw new RuntimeException('Неверный код');
+    }
+    $pdo->prepare("UPDATE staff SET {$kind}_verified=? WHERE id=?")->execute([date('Y-m-d H:i:s'), $s['id']]);
+    $pdo->prepare('DELETE FROM staff_codes WHERE staff_id=? AND kind=?')->execute([$s['id'], $kind]);
 }

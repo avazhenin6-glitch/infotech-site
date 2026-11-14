@@ -2,9 +2,10 @@
 /* Кабинет менеджера: сотрудники (ФИО, должность, телефон, день рождения), мой профиль и пароль, внутренний чат. */
 declare(strict_types=1);
 
-const STAFF_ACTS = ['staff_save', 'staff_toggle', 'staff_pass', 'me_save', 'me_pass', 'chat_post'];
+const STAFF_ACTS = ['staff_save', 'staff_toggle', 'staff_pass', 'me_save', 'me_pass', 'me_code', 'me_verify', 'chat_post'];
+const STAFF_GATE_ACTS = ['me_save', 'me_pass', 'me_code', 'me_verify'];
 
-function staff_form_vals(): array {
+function staff_form_vals(bool $all = false): array {
     $bd = (string)($_POST['birthday'] ?? '');
     $phone = trim((string)($_POST['phone'] ?? ''));
     $np = $phone === '' ? '' : norm_phone($phone);
@@ -13,7 +14,9 @@ function staff_form_vals(): array {
     $email = trim((string)($_POST['email'] ?? ''));
     if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) throw new RuntimeException('Проверьте e-mail');
     $name = clean($_POST['name'] ?? '', 150);
-    if (mb_strlen($name) < 3) throw new RuntimeException('Укажите ФИО');
+    if (mb_strlen($name) < 3 || ($all && count(preg_split('/\s+/u', $name)) < 2)) throw new RuntimeException('Укажите ФИО полностью');
+    if ($all) foreach (['position' => 'должность', 'phone' => 'телефон', 'birthday' => 'дату рождения', 'email' => 'e-mail'] as $k => $t)
+        if (trim((string)($_POST[$k] ?? '')) === '') throw new RuntimeException("Укажите $t — все поля профиля обязательны");
     return ['name' => $name, 'position' => clean($_POST['position'] ?? '', 100), 'phone' => $np ?: null, 'birthday' => $bd ?: null, 'email' => $email ?: null];
 }
 function staff_check_pass(string $p, string $p2): void {
@@ -33,9 +36,21 @@ function adm_staff_post(): void {
                 if ($ajax) { header('Content-Type: application/json'); echo json_encode(['ok' => true, 'id' => $id]); exit; }
                 lk_redirect('/lk/admin/?chat=' . urlencode($room));
             case 'me_save':
-                $v = staff_form_vals();
-                $pdo->prepare('UPDATE staff SET name=?, position=?, phone=?, birthday=?, email=? WHERE id=?')->execute([...array_values($v), $me['id']]);
-                lk_flash('Профиль сохранён'); lk_redirect('/lk/admin/?me=1');
+                $v = staff_form_vals(true);
+                $pdo->prepare('UPDATE staff SET name=?, position=?, phone=?, birthday=?, email=?,
+                               email_verified=CASE WHEN email IS ? THEN email_verified ELSE NULL END, phone_verified=CASE WHEN phone IS ? THEN phone_verified ELSE NULL END WHERE id=?')
+                    ->execute([...array_values($v), $v['email'], $v['phone'], $me['id']]);
+                $me = staff_get((int)$me['id']); $miss = staff_missing($me);
+                lk_flash('Профиль сохранён' . ($miss ? '. Осталось: ' . implode(', ', $miss) : ''), $miss ? 'wait' : 'ok'); lk_redirect('/lk/admin/?me=1');
+            case 'me_code':
+                $kind = ($_POST['kind'] ?? '') === 'phone' ? 'phone' : 'email';
+                lk_flash(staff_send_code($me, $kind) . '. Введите его ниже.'); lk_redirect('/lk/admin/?me=1#verify');
+            case 'me_verify':
+                $kind = ($_POST['kind'] ?? '') === 'phone' ? 'phone' : 'email';
+                staff_check_code($me, $kind, (string)($_POST['code'] ?? ''));
+                $miss = staff_missing(staff_get((int)$me['id']));
+                lk_flash(($kind === 'email' ? 'E-mail' : 'Телефон') . ' подтверждён' . ($miss ? '. Осталось: ' . implode(', ', $miss) : '. Профиль заполнен — можно работать.'), $miss ? 'wait' : 'ok');
+                lk_redirect($miss ? '/lk/admin/?me=1' : '/lk/admin/');
             case 'me_pass':
                 if (!password_verify((string)($_POST['old'] ?? ''), (string)$me['pass_hash'])) throw new RuntimeException('Текущий пароль неверный');
                 staff_check_pass((string)($_POST['pass'] ?? ''), (string)($_POST['pass2'] ?? ''));
@@ -76,17 +91,18 @@ function adm_staff_post(): void {
     } catch (RuntimeException $e) {
         if ($ajax) { header('Content-Type: application/json'); http_response_code(400); echo json_encode(['ok' => false, 'error' => $e->getMessage()]); exit; }
         lk_flash($e->getMessage(), 'bad');
-        lk_redirect($_SERVER['HTTP_REFERER'] ?? '/lk/admin/');
+        lk_redirect(in_array($act, STAFF_GATE_ACTS, true) ? '/lk/admin/?me=1#verify' : ($_SERVER['HTTP_REFERER'] ?? '/lk/admin/'));
     }
 }
 
 function adm_staff_form(?array $s, bool $self = false): string {
     $v = fn($k) => h((string)($s[$k] ?? ''));
+    $rq = $self ? ' required' : '';
     $f = lk_csrf_field() . '<input type="hidden" name="act" value="' . ($self ? 'me_save' : 'staff_save') . '"><input type="hidden" name="id" value="' . (int)($s['id'] ?? 0) . '">';
     return '<form method="post" class="svcform">' . $f
-        . '<div class="row"><label>ФИО<input name="name" value="' . $v('name') . '" placeholder="Иванов Иван Иванович" required></label><label>Должность<input name="position" value="' . $v('position') . '" placeholder="Менеджер по продажам"></label></div>'
-        . '<div class="row"><label>Телефон<input type="tel" name="phone" value="' . $v('phone') . '" placeholder="+7 (___) ___-__-__"></label><label>Дата рождения<input type="date" name="birthday" value="' . $v('birthday') . '"></label>'
-        . '<label>E-mail<input type="email" name="email" value="' . $v('email') . '"></label></div>'
+        . '<div class="row"><label>ФИО<input name="name" value="' . $v('name') . '" placeholder="Иванов Иван Иванович" required></label><label>Должность<input name="position" value="' . $v('position') . '" placeholder="Менеджер по продажам"' . $rq . '></label></div>'
+        . '<div class="row"><label>Телефон<input type="tel" name="phone" value="' . $v('phone') . '" placeholder="+7 (___) ___-__-__" pattern="\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}"' . $rq . '></label><label>Дата рождения<input type="date" name="birthday" value="' . $v('birthday') . '" min="1930-01-01" max="' . date('Y-m-d') . '"' . $rq . '></label>'
+        . '<label>E-mail<input type="email" name="email" value="' . $v('email') . '"' . $rq . '></label></div>'
         . (!$self && staff_is_admin() ? '<div class="row">' . (!$s ? '<label>Логин для входа<input name="login" pattern="[a-z0-9._\-]{3,32}" placeholder="ivanov" required></label><label>Пароль (от 8 символов)<input name="pass" minlength="8" required autocomplete="new-password"></label>' : '')
             . '<label>Роль<select name="role">' . implode('', array_map(fn($k, $t) => '<option value="' . $k . '"' . (($s['role'] ?? 'manager') === $k ? ' selected' : '') . '>' . $t . '</option>', array_keys(STAFF_ROLES), STAFF_ROLES)) . '</select></label></div>' : '')
         . '<button class="btn">' . ($s ? 'Сохранить' : 'Добавить сотрудника') . '</button></form>';
@@ -151,8 +167,21 @@ function adm_staff_get(): void {
             . 'f.file.addEventListener("change",function(){ta.placeholder=f.file.files.length?"Файл: "+f.file.files[0].name+" — добавьте подпись или нажмите «Отправить»":"Сообщение…"});ta.focus()})();</script>');
     }
     if (isset($_GET['me'])) {
+        $miss = staff_missing($me);
+        $ver = function (string $kind) use ($me): string {
+            $label = $kind === 'email' ? 'E-mail' : 'Телефон';
+            if (!$me[$kind]) return '<p class="muted">' . $label . ': сначала укажите и сохраните.</p>';
+            if ($me[$kind . '_verified']) return '<p>' . $label . ' <b>' . h($me[$kind]) . '</b> — <span class="badge ok">подтверждён</span></p>';
+            if ($kind === 'phone' && !sms_configured()) return '<p>' . $label . ' <b>' . h($me[$kind]) . '</b> — <span class="badge wait">подтверждение по SMS включится после подключения SMS-сервиса</span></p>';
+            $f = lk_csrf_field() . '<input type="hidden" name="kind" value="' . $kind . '">';
+            return '<p>' . $label . ' <b>' . h($me[$kind]) . '</b> — <span class="badge bad">не подтверждён</span></p><div class="filters">'
+                . '<form method="post" class="inline">' . $f . '<button class="btn ghost" name="act" value="me_code">Отправить код ' . ($kind === 'email' ? 'на почту' : 'по SMS') . '</button></form>'
+                . '<form method="post" class="row">' . $f . '<input type="hidden" name="act" value="me_verify"><input name="code" inputmode="numeric" pattern="\d{6}" maxlength="6" placeholder="6 цифр" required style="max-width:140px;margin:0"><button class="btn">Подтвердить</button></form></div>';
+        };
         mgr_page('Мой профиль', '<h1>Мой профиль</h1><p class="muted">Логин: <b>' . h($me['login']) . '</b> · ' . h(STAFF_ROLES[$me['role']] ?? '') . '</p>'
+            . ($miss ? '<div class="flash wait">Работа в кабинете откроется после заполнения профиля. Осталось: <b>' . h(implode(', ', $miss)) . '</b>.</div>' : '')
             . '<div class="card cut">' . adm_staff_form($me, true) . '</div>'
+            . '<div class="card cut" id="verify"><h2>Подтверждение контактов</h2>' . $ver('email') . $ver('phone') . '</div>'
             . '<div class="card cut"><h2>Сменить пароль</h2><form method="post" class="svcform">' . lk_csrf_field() . '<input type="hidden" name="act" value="me_pass">'
             . '<div class="row"><label>Текущий пароль<input type="password" name="old" required autocomplete="current-password"></label><label>Новый (от 8 символов)<input type="password" name="pass" minlength="8" required autocomplete="new-password"></label>'
             . '<label>Ещё раз<input type="password" name="pass2" minlength="8" required autocomplete="new-password"></label></div><button class="btn">Сменить пароль</button></form></div>');
