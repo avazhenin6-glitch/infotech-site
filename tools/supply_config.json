@@ -4,7 +4,7 @@
     {
       "id": "polus",
       "name": "Polus — ВРЕМЕННО, открытый сайт (до подключения API, не дольше недели)",
-      "enabled": true,
+      "enabled": false,
       "type": "site",
       "source": "https://polus.ru",
       "limit": 100,
@@ -12,7 +12,7 @@
         2,
         4
       ],
-      "_note": "Исключение из регламента на время теста: robots.txt, честный User-Agent, пауза 2–4 с, остановка при отказе. После получения API — enabled:false и удалить.",
+      "_note": "ОТКЛЮЧЕНО 14.11.2026: ТЗ «Личный кабинет и каталог», п.6 — сбор с polus.ru запрещён. Источники — только B2B-каналы дистрибьюторов (Marvel, 3Logic).",
       "sitemaps": [],
       "start_urls": [],
       "product_url_regex": "^https://polus\\.ru/[a-z0-9-]*(protsessor|materinsk|operativn|nakopiteli-ssd|zhestkie-diski|videokart|bloki-pitaniya|blok-pitaniya|korpus|kuler|ohlazhd|okhlazhd|server|kommutator|marshrutizator|istochniki-bespereboynogo|ibp|monitory)[a-z0-9-]*/[^/]+/[^/?#]+-\\d{5,}$",
