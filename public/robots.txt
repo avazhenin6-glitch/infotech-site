@@ -1,5 +1,6 @@
 User-agent: *
 Disallow: /admin/
 Disallow: /api/
+Disallow: /lk/
 Sitemap: https://pbk.spb.ru/sitemap.xml
 Sitemap: https://pbk.spb.ru/sitemap-products.xml

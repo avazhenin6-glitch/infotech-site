@@ -7,3 +7,6 @@ public/tovar/
 public/uploads/
 public/sitemap-products.xml
 __pycache__/
+app/vendor/tfpdf/font/unifont/*.mtx.php
+app/vendor/tfpdf/font/unifont/*.cw.dat
+app/vendor/tfpdf/font/unifont/*.cw127.php

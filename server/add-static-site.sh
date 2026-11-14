@@ -137,6 +137,11 @@ server {
         location ~ \.php\$ { include snippets/fastcgi-php.conf; fastcgi_pass unix:$SOCK; }
         index index.php;
     }
+    location ^~ /lk/ {
+        client_max_body_size 21m;
+        location ~ \.php\$ { include snippets/fastcgi-php.conf; fastcgi_pass unix:$SOCK; }
+        index index.php;
+    }
     location ~ \.php\$ { return 404; }
     location ~ /\. { deny all; }
     location / { try_files \$uri \$uri/ =404; }

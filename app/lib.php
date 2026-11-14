@@ -94,6 +94,15 @@ function clean(?string $s, int $max = 500): string {
 
 function money_rub(float $v): string { return number_format($v, 0, ',', ' ') . ' ₽'; }
 function money_usd(float $v): string { return '$' . number_format($v, 2, '.', ','); }
+/* телефон: только российские номера, формат +7 (XXX) XXX-XX-XX */
+function norm_phone(string $p): ?string {
+    $d = preg_replace('/\D/', '', $p);
+    if (strlen($d) === 11 && ($d[0] === '7' || $d[0] === '8')) $d = '7' . substr($d, 1);
+    elseif (strlen($d) === 10) $d = '7' . $d;
+    else return null;
+    return sprintf('+7 (%s) %s-%s-%s', substr($d, 1, 3), substr($d, 4, 3), substr($d, 7, 2), substr($d, 9, 2));
+}
+
 function h(?string $s): string { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 
 function json_out(array $data, int $code = 200): never {

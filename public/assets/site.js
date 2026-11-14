@@ -284,7 +284,10 @@ if(SHOP)$('moreBtn').onclick=()=>{st.page++;renderShop()};
 
 /* корзина */
 let cart={};try{cart=JSON.parse(localStorage.getItem('infotech-cart2')||'{}')||{}}catch(e){cart={}}
-const saveCart=()=>{try{localStorage.setItem('infotech-cart2',JSON.stringify(cart))}catch(e){}};
+const LK=document.cookie.indexOf('pbk_lk=1')>=0;   // вошёл в личный кабинет (флаг для интерфейса; данные проверяет сервер)
+let cartSyncT;
+const saveCart=()=>{try{localStorage.setItem('infotech-cart2',JSON.stringify(cart))}catch(e){}
+  if(LK){clearTimeout(cartSyncT);cartSyncT=setTimeout(()=>fetch('/lk/api.php?a=cart',{method:'POST',headers:{'X-Requested-With':'pbk','Content-Type':'application/json'},body:JSON.stringify({cart})}).catch(()=>{}),600)}};
 function cartTotals(){
   let rubS=0,usdS=0,count=0,eN=0,pN=0,sN=0;
   for(const[id,q]of Object.entries(cart)){const p=P(id);if(!p)continue;count+=q;if(p.cur==='$')usdS+=p.price*q;else rubS+=p.price*q;if(p.e===1)eN+=q;else if(p.e===2)sN+=q;else pN+=q}
@@ -321,6 +324,7 @@ function updateCart(){
     :'<div class="empty">Корзина пуста.<br><a href="${ROOT}magazin-1c/" style="color:var(--slate);border-bottom:1px solid">Перейти в магазин</a></div>';
   $('cartTotal').textContent=`${pos(ids.length)} · ${unitsOf(t.count)}`;
   $('toCheckout').disabled=!ids.length;$('toCheckout').style.opacity=ids.length?1:.45;
+  const kp=$('kpCart');if(kp){kp.style.display=ids.length?'':'none';kp.href='/lk/kp.php?cart='+ids.map(id=>encodeURIComponent(id)+':'+cart[id]).join(',')}
   bindQty($('cartList'));
   $('cartList').querySelectorAll('[data-close]').forEach(a=>a.onclick=closeAll);
 }
@@ -416,6 +420,8 @@ $('placeOrder').onclick=async()=>{
     ?'Это демонстрационный просмотр: сервер не подключён, заказ никуда не отправлен.'
     :`Спасибо! Подтверждение отправлено на ${$('bMail').value}. Менеджер свяжется с вами, уточнит детали и пришлёт счёт.`+(t.eN?' Электронные лицензии придут на этот e-mail после оплаты.':'');
   $('doneText').textContent=`Заказ ${no}\n\n`+txtBody;
+  if(!demo){const a=document.createElement('a');a.href='/lk/orders/?n='+encodeURIComponent(no);a.className='btn btn-light cut';a.style.marginTop='14px';
+    a.textContent=LK?'Открыть заказ в личном кабинете':'Личный кабинет: вход по коду на '+$('bMail').value;$('doneLead').after(a)}
   $('coForm').style.display='none';$('coDone').style.display='block';$('checkout').scrollTop=0;
   cart={};saveCart();updateCart();renderShop();
 };
@@ -633,3 +639,22 @@ document.querySelectorAll('[data-buy]').forEach(b=>{
   inp.onchange=()=>{inp.value=q()};
   b.onclick=()=>{if(!P(b.dataset.buy)){b.textContent='Обновите страницу';return}addToCart(b.dataset.buy,q());b.textContent='Добавлено в корзину';setTimeout(()=>b.textContent='В корзину',2500)};
 });
+
+/* ================= Личный кабинет: кнопка в шапке, автозаполнение, корзина с другого устройства ================= */
+(function(){
+  const b=document.getElementById('lkBtn');
+  if(b&&LK){b.querySelector('span').textContent='Кабинет';b.classList.add('in')}
+  if(!LK)return;
+  fetch('/lk/api.php?a=me').then(r=>r.json()).then(me=>{
+    if(!me.logged){document.cookie='pbk_lk=; Max-Age=0; path=/';if(b){b.querySelector('span').textContent='Войти';b.classList.remove('in')}return}
+    const fill=(id,v)=>{const el=document.getElementById(id);if(el&&!el.value&&v)el.value=v};
+    fill('bFio',me.name);fill('bMail',me.email);fill('bTel',me.phone);
+    if(me.companies&&me.companies.length===1){fill('bInn',me.companies[0].inn);fill('bOrg',me.companies[0].name)}
+  }).catch(()=>{});
+  fetch('/lk/api.php?a=cart').then(r=>r.json()).then(d=>{
+    if(!d.ok||!d.cart)return;let changed=false;
+    for(const k in d.cart){if(!(k in cart)&&P(k)){cart[k]=d.cart[k];changed=true}}
+    if(changed){saveCart();updateCart();renderShop()}
+  }).catch(()=>{});
+})();
+if(new URLSearchParams(location.search).get('cart')==='1')setTimeout(()=>{try{openCart()}catch(e){}},300);

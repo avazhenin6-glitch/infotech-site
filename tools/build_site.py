@@ -366,5 +366,5 @@ urls = [p.replace('index.html', '') for p in built] + ['privacy.html']
 open(os.path.join(PUB, 'sitemap.xml'), 'w', encoding='utf-8').write(
     '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
     ''.join(f'  <url><loc>{DOMAIN}/{u}</loc><lastmod>{today}</lastmod></url>\n' for u in urls) + '</urlset>\n')
-open(os.path.join(PUB, 'robots.txt'), 'w').write(f'User-agent: *\nDisallow: /admin/\nDisallow: /api/\nSitemap: {DOMAIN}/sitemap.xml\nSitemap: {DOMAIN}/sitemap-products.xml\n')
+open(os.path.join(PUB, 'robots.txt'), 'w').write(f'User-agent: *\nDisallow: /admin/\nDisallow: /api/\nDisallow: /lk/\nSitemap: {DOMAIN}/sitemap.xml\nSitemap: {DOMAIN}/sitemap-products.xml\n')
 print('Собрано страниц:', len(built))

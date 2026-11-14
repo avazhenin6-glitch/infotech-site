@@ -151,3 +151,9 @@ update-catalog.sh при первом запуске ставит Python-пак�
 - Новая статья: добавить запись в `content/journal/posts.json` и файл `content/journal/<slug>.html`, затем `python3 tools/build_site.py` и push.
   Сервер (после повторного запуска `server/deploy-setup.sh`) собирает сайт сам — достаточно запушить только `content/journal/`.
 - Сжатие и кеш для уже установленного сервера: `sudo bash /opt/infotech-deploy/repo/server/enable-gzip.sh pbk.spb.ru`.
+
+## Личный кабинет (этап 1, ноябрь 2026)
+- Подключение на сервере (один раз): `sudo bash /opt/infotech-deploy/repo/server/lk-setup.sh pbk.spb.ru`
+- Клиенты: https://pbk.spb.ru/lk/ · менеджер: https://pbk.spb.ru/lk/admin/ (логин/пароль — как в /admin/).
+- Вход и регистрация работают по коду на e-mail — без рабочей почты (SMTP) клиенты не смогут войти.
+- Автозаполнение реквизитов по ИНН: ключ DaData в app/config.php → 'dadata_token' => '...'.

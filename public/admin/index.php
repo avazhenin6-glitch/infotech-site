@@ -9,7 +9,7 @@ session_start();
 header('X-Robots-Tag: noindex, nofollow');
 header('Cache-Control: no-store');
 
-const STATUSES = ['Новый', 'В работе', 'Счёт выставлен', 'Оплачен', 'Выполнен', 'Отменён'];
+const STATUSES = ['Новый', 'Счёт выставлен', 'Платёж на проверке', 'Оплачен', 'В работе', 'Выполнен', 'Отменён', 'Срок резерва истёк'];
 if (empty($_SESSION['csrf'])) $_SESSION['csrf'] = bin2hex(random_bytes(16));
 $csrf = $_SESSION['csrf'];
 $self = strtok($_SERVER['REQUEST_URI'], '?');
@@ -112,7 +112,7 @@ foreach ($st as $r) {
 $sel = fn($name, $cur, $opts) => '<select name="' . $name . '" onchange="this.form.submit()">' . implode('', array_map(fn($k, $v) => '<option value="' . h((string)$k) . '"' . ((string)$k === $cur ? ' selected' : '') . '>' . h($v) . '</option>', array_keys($opts), $opts)) . '</select>';
 $html = '<form class="filters"><input name="q" value="' . h($q) . '" placeholder="Поиск: номер, имя, телефон, ИНН">' .
     $sel('t', $t, ['' => 'Заказы и заявки', 'order' => 'Только заказы', 'lead' => 'Только заявки']) .
-    $sel('s', $s, ['' => 'Все статусы'] + array_combine(STATUSES, STATUSES)) . '<button>Найти</button><a class="btn2" href="?csv=1">Выгрузить CSV</a><a class="btn2" href="?supply=1">Каталог оборудования</a></form>' .
+    $sel('s', $s, ['' => 'Все статусы'] + array_combine(STATUSES, STATUSES)) . '<button>Найти</button><a class="btn2" href="?csv=1">Выгрузить CSV</a><a class="btn2" href="?supply=1">Каталог оборудования</a><a class="btn2" href="/lk/admin/">Кабинет менеджера (счета, документы)</a></form>' .
     '<div class="card"><table><tr><th>Номер</th><th>Тип</th><th>Дата</th><th>Клиент</th><th>Контакты</th><th class="r">Сумма</th><th>Статус</th></tr>' . ($rows ?: '<tr><td colspan="7">Пока пусто</td></tr>') . '</table></div>';
 page('Заказы и заявки', $html);
 

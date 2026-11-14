@@ -7,17 +7,10 @@
  * Цены и наименования берутся с сервера (catalog.js), а не из браузера.
  */
 declare(strict_types=1);
-require __DIR__ . '/../../app/lib.php';
+require __DIR__ . '/../../app/lk.php';   // lib.php + личный кабинет
 
 
 /* Телефон: принимаем только российский номер +7XXXXXXXXXX и приводим к виду +7 (XXX) XXX-XX-XX */
-function norm_phone(string $p): ?string {
-    $d = preg_replace('/\D/', '', $p);
-    if (strlen($d) === 11 && ($d[0] === '7' || $d[0] === '8')) $d = '7' . substr($d, 1);
-    elseif (strlen($d) === 10) $d = '7' . $d;
-    else return null;
-    return sprintf('+7 (%s) %s-%s-%s', substr($d, 1, 3), substr($d, 4, 3), substr($d, 7, 2), substr($d, 9, 2));
-}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_out(['ok' => false, 'error' => 'method'], 405);
 
@@ -97,6 +90,8 @@ $pdo->prepare('INSERT INTO orders (type, created_at, name, email, phone, inn, co
 $id = (int)$pdo->lastInsertId();
 $number = 'ИТ-' . date('ymd') . '-' . $id;
 $pdo->prepare('UPDATE orders SET number=? WHERE id=?')->execute([$number, $id]);
+// личный кабинет: заказ привязывается к аккаунту (вошедшего покупателя или по e-mail; новый аккаунт создаётся сам)
+try { $acc = lk_attach_order($id, $email, $name, $phone, $inn, $company); } catch (Throwable $e) { error_log('LK attach: ' . $e->getMessage()); $acc = null; }
 
 $lines = array_map(fn($i) => "• {$i['name']} (арт. {$i['code']}) — {$i['qty']} шт × "
     . ($i['cur'] === 'USD' ? money_usd($i['price']) : money_rub($i['price'])) . ($i['e'] === 1 ? ' [e-mail]' : ($i['e'] === 2 ? ' [услуга]' : '')) . (!empty($i['pre']) ? ' [под заказ]' : ''), $items);
@@ -107,14 +102,16 @@ $custLines = array_map(fn($i) => "• {$i['name']} (арт. {$i['code']}) — {$
 $custBody = implode("\n", $custLines) . "\n\nСтоимость: менеджер укажет в счёте (НДС не облагается, УСН)\nПоставка: {$delivery}\nОплата: {$payment}";
 $buyer = "Покупатель: {$name}\nE-mail: {$email}\nТелефон: {$phone}" . ($inn ? "\nИНН: {$inn}" : '') . ($company ? "\nОрганизация: {$company}" : '') . ($comment ? "\nКомментарий: {$comment}" : '');
 
-$managerText = "Новый заказ {$number}\n\n{$body}\n\n{$buyer}\n\n" . cfg('site_url') . "/admin/?id={$id}";
+$managerText = "Новый заказ {$number}\n\n{$body}\n\n{$buyer}\n\n" . cfg('site_url') . "/lk/admin/?n=" . urlencode($number);
 send_mail((string)cfg('notify_emails'), "Заказ {$number}", $managerText);
 // В Telegram — состав и сумма без персональных данных покупателя
-send_telegram("Новый заказ {$number}\n\n{$body}" . ($company ? "\nОрганизация: {$company}" : '') . "\n\n" . cfg('site_url') . "/admin/?id={$id}");
+send_telegram("Новый заказ {$number}\n\n{$body}" . ($company ? "\nОрганизация: {$company}" : '') . "\n\n" . cfg('site_url') . "/lk/admin/?n=" . urlencode($number));
 
 if (cfg('send_customer_copy')) {
     $cust = "Здравствуйте, {$name}!\n\nСпасибо за заказ в " . cfg('site_name') . ". Номер заказа: {$number}.\n\n{$custBody}\n\n"
           . "Менеджер свяжется с вами, уточнит детали и пришлёт счёт.\n"
+          . "\nЗаказ, счёт и документы — в личном кабинете: " . cfg('site_url') . '/lk/orders/?n=' . urlencode($number) . "\n"
+          . ($acc && $acc['created'] ? "Мы создали для вас кабинет на этот e-mail. Войдите по одноразовому коду, пароль можно задать потом.\n" : '')
           . ($eCount ? "Электронные лицензии и пин-коды придут на этот e-mail после оплаты.\n" : '')
           . ($sCount ? "Аренда сервера и сопровождение подключаются после оплаты — менеджер согласует дату запуска.\n" : '')
           . "\n" . cfg('site_name') . "\n" . cfg('site_url');

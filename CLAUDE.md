@@ -20,7 +20,14 @@
   из прайса фирмы «1С» (столбец «Рекомендованная цена»). Правила отбора — reason() в tools/update_catalog.py.
 - tools/own_prices.json — собственные тарифы ИНФОТЕХ (аренда серверов, сопровождение, скидки). После правки — пересобрать catalog.js и сайт.
 - public/api/submit.php — приём заказов/заявок; app/lib.php — БД SQLite, почта (SMTP Яндекса), Telegram через мост 127.0.0.1:10809.
-- public/admin/ — админка заказов.
+- public/admin/ — админка заказов (старая); основной инструмент менеджера — /lk/admin/.
+- Личный кабинет /lk/ (PHP, та же SQLite): app/lk.php — общая часть (users, user_companies, otp, documents; колонки orders: user_id, company_id, valid_until, keys_text, has_hw).
+  Страницы: /lk/ (дашборд), /lk/login/ (пароль или код на e-mail), /lk/register/ (подтверждение кодом), /lk/orders/ (?n=номер), /lk/documents/, /lk/profile/,
+  /lk/support/, /lk/services/ (этап 2), /lk/admin/ (менеджер: статусы, счета/УПД/акты из 1С, ключи, «глазами клиента»), /lk/kp.php (КП в PDF, tFPDF + Inter из app/vendor),
+  /lk/file.php (выдача документов с проверкой владельца), /lk/api.php (me, корзина, ИНН→DaData при 'dadata_token' в config.php).
+  Заказ с сайта сам привязывается к аккаунту по e-mail (новый аккаунт создаётся); войти в него можно только кодом на этот e-mail.
+  Счета, УПД, акты делает 1С:УНФ ИНФОТЕХ — менеджер прикрепляет PDF; счёт на оборудование действует 3 рабочих дня (lk_add_workdays), потом «Срок резерва истёк».
+  Сервер: server/lk-setup.sh (nginx /lk/, загрузки 20 МБ). Документы — app/data/lk-files (не публично).
 - app/config.php и app/data/ — только на сервере, в репозиторий не попадают (.gitignore).
 
 ## Правила
