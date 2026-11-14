@@ -324,3 +324,4 @@ require_once __DIR__ . '/lk_payments.php';
 require_once __DIR__ . '/workcal.php';
 require_once __DIR__ . '/mikrotik.php';
 require_once __DIR__ . '/billing.php';
+require_once __DIR__ . '/staff.php';

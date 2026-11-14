@@ -5,7 +5,7 @@ declare(strict_types=1);
 const BILL_ADMIN_ACTS = ['bill_close', 'bill_open', 'bill_vm_off', 'bill_vm_on', 'bill_purge', 'bill_issue', 'bill_run', 'bill_annul'];
 
 function adm_billing_post(): void {
-    $act = (string)$_POST['act']; $by = 'менеджер';
+    $act = (string)$_POST['act']; $by = mgr_name();
     $s = isset($_POST['sid']) ? svc_get((int)$_POST['sid']) : null;
     $back = '/lk/admin/?billing=1';
     try {

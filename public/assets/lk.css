@@ -117,3 +117,29 @@ form.scale{margin-top:14px;width:100%}
 /* оплаты */
 .paybar{height:8px;background:var(--sky);overflow:hidden;margin:10px 0 4px}
 .paybar i{display:block;height:100%;background:var(--slate)}
+/* чат сотрудников */
+.side .who small{color:var(--sky);font-weight:400}
+em.unread{display:inline-block;min-width:20px;padding:1px 6px;margin-left:6px;background:var(--slate);color:#fff;font-style:normal;font-size:12px;font-weight:600;text-align:center;border-radius:10px}
+em.unread[hidden]{display:none}
+.chat{display:grid;grid-template-columns:260px 1fr;gap:18px;align-items:start}
+.rooms{display:flex;flex-direction:column;gap:6px}
+.rooms .room{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;background:#fff;border:1px solid var(--sky);color:var(--deep);text-decoration:none}
+.rooms .room small{color:var(--muted)}
+.rooms .room.on{border-color:var(--slate);box-shadow:inset 3px 0 0 var(--slate)}
+.thread h2{margin-bottom:2px}
+.msgs{height:min(60vh,560px);overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:12px;margin:12px 0;background:var(--ghost);border:1px solid var(--sky)}
+.msg{max-width:78%;padding:8px 12px;background:#fff;border:1px solid var(--sky);align-self:flex-start;word-wrap:break-word}
+.msg.mine{align-self:flex-end;background:#e6f0f8;border-color:#b9d3e8}
+.msg .meta{font-size:12px;color:var(--muted);margin-bottom:3px}
+.msg .meta b{color:var(--deep)}
+.msg img{display:block;max-width:260px;max-height:200px;margin-top:6px}
+.msg .att{display:inline-block;margin-top:6px}
+.send{display:flex;gap:10px;align-items:flex-end}
+.send textarea{flex:1;margin:0;resize:vertical;min-height:46px}
+.send .clip{cursor:pointer;font-size:22px;padding:8px 4px;margin:0}
+.small{font-size:12.5px}
+@media (max-width:860px){.chat{grid-template-columns:1fr}.rooms{flex-direction:row;overflow-x:auto}.rooms .room{min-width:180px}}
+.send .clip{flex:0 0 auto;width:auto;display:flex;align-items:center}
+.send .clip input{display:none}
+.send textarea{width:auto;min-width:0}
+.send .btn{flex:0 0 auto}

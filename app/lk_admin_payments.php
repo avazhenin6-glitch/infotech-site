@@ -22,12 +22,12 @@ function adm_payments_post(): void {
         $oid = (int)$st->fetchColumn();
         $tx = $pdo->query('SELECT * FROM bank_transactions WHERE id=' . $tid)->fetch();
         if (!$oid || !$tx || $tx['match_status'] === 'matched') lk_flash('Заказ не найден или платёж уже разнесён', 'bad');
-        else { $r = pay_apply($tid, $oid, 'менеджер', 'вручную'); lk_flash("Платёж привязан к заказу $num — статус «{$r}»"); }
+        else { $r = pay_apply($tid, $oid, mgr_name(), 'вручную'); lk_flash("Платёж привязан к заказу $num — статус «{$r}»"); }
         lk_redirect('/lk/admin/?payments=1');
     }
     if ($act === 'pay_ignore') {
-        $pdo->prepare("UPDATE bank_transactions SET match_status='ignored', match_note='не относится к заказам сайта', matched_at=?, matched_by='менеджер' WHERE id=? AND match_status='unmatched'")
-            ->execute([date('Y-m-d H:i:s'), (int)$_POST['tid']]);
+        $pdo->prepare("UPDATE bank_transactions SET match_status='ignored', match_note='не относится к заказам сайта', matched_at=?, matched_by=? WHERE id=? AND match_status='unmatched'")
+            ->execute([date('Y-m-d H:i:s'), mgr_name(), (int)$_POST['tid']]);
         lk_flash('Платёж скрыт из неразнесённых'); lk_redirect('/lk/admin/?payments=1');
     }
 }

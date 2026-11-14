@@ -5,34 +5,42 @@ require __DIR__ . '/../../../app/lk.php';
 lk_session();
 $pdo = lk_db();
 
-if (isset($_GET['logout'])) { unset($_SESSION['mgr'], $_SESSION['as']); lk_redirect('/lk/admin/'); }
+if (isset($_GET['logout'])) { unset($_SESSION['mgr'], $_SESSION['as'], $_SESSION['staff']); lk_redirect('/lk/admin/'); }
+if (!empty($_SESSION['mgr']) && !staff_me()) unset($_SESSION['mgr']);   // сессия без сотрудника (старый вход) — войти заново
 if (isset($_GET['stopas'])) { unset($_SESSION['as']); lk_redirect('/lk/admin/'); }
 if (empty($_SESSION['mgr'])) {
     $err = '';
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         lk_check_csrf();
         usleep(400000);
-        $hash = (string)cfg('admin_password_hash');
-        if (lk_throttle('mgr', 10, 900)) $err = 'Слишком много попыток';
-        elseif ($hash && hash_equals((string)cfg('admin_user'), (string)($_POST['user'] ?? '')) && password_verify((string)($_POST['pass'] ?? ''), $hash)) {
-            session_regenerate_id(true); $_SESSION['mgr'] = 1; lk_redirect('/lk/admin/');
+        if (lk_throttle('mgr', 10, 900)) $err = 'Слишком много попыток, попробуйте через 15 минут';
+        elseif ($st = staff_auth(mb_strtolower(trim((string)($_POST['user'] ?? ''))), (string)($_POST['pass'] ?? ''))) {
+            lk_db()->prepare('DELETE FROM hits WHERE ip=?')->execute(['mgr:' . client_ip()]);   // считаем только неудачные попытки
+            session_regenerate_id(true); $_SESSION['mgr'] = 1; $_SESSION['staff'] = (int)$st['id'];
+            staff_db()->prepare('UPDATE staff SET last_login=?, last_seen=? WHERE id=?')->execute([date('Y-m-d H:i:s'), date('Y-m-d H:i:s'), $st['id']]);
+            if (!$st['phone'] && !$st['position']) { lk_flash('Заполните, пожалуйста, свой профиль: ФИО, должность, телефон, дату рождения'); lk_redirect('/lk/admin/?me=1'); }
+            lk_redirect('/lk/admin/');
         } else $err = 'Неверный логин или пароль';
     }
     lk_page('Вход менеджера', '', '<div class="auth cut"><h1>Кабинет менеджера</h1>' . lk_trace() . ($err ? '<div class="flash bad">' . h($err) . '</div>' : '')
         . '<form method="post">' . lk_csrf_field() . '<label>Логин<input name="user" autocomplete="username" required></label><label>Пароль<input type="password" name="pass" autocomplete="current-password" required></label><button class="btn">Войти</button></form>'
-        . '<p class="muted">Логин и пароль — те же, что в админке заказов.</p></div>');
+        . '<p class="muted">Вход для сотрудников ИНФОТЕХ. Учётные записи выдаёт администратор.</p></div>');
 }
 unset($_SESSION['as']);   // в кабинете менеджера — не «от имени клиента»
 require APP_DIR . '/lk_admin_services.php';
 require APP_DIR . '/lk_admin_payments.php';
 require APP_DIR . '/lk_admin_billing.php';
+require APP_DIR . '/lk_admin_staff.php';
 
 function mgr_page(string $title, string $body): never {
-    $nav = '<a href="/lk/admin/">Заказы</a><a href="/lk/admin/?billing=1">Аренда серверов</a><a href="/lk/admin/?payments=1">Оплаты Сбербанк</a><a href="/lk/admin/?services=1">Услуги клиентов</a><a href="/lk/admin/?tickets=1">Обращения</a><a href="/lk/admin/?leads=1">Заявки с сайта</a><a href="/lk/admin/?users=1">Клиенты</a><a href="/admin/?supply=1">Каталог оборудования</a><a href="/lk/admin/?logout=1">Выйти</a>';
+    $me = staff_me(); $unread = $me ? chat_unread_total($me) : 0;
+    $bd = '';
+    foreach (staff_birthdays(0) as $b) $bd .= '<div class="flash ok">Сегодня день рождения у ' . h($b['s']['name'] ?: $b['s']['login']) . ($b['s']['position'] ? ' (' . h($b['s']['position']) . ')' : '') . ' — поздравьте в <a href="/lk/admin/?chat=general">общем чате</a>!</div>';
+    $nav = '<a href="/lk/admin/?chat=general">Чат <em class="unread" id="chatBadge"' . ($unread ? '' : ' hidden') . '>' . $unread . '</em></a><a href="/lk/admin/">Заказы</a><a href="/lk/admin/?billing=1">Аренда серверов</a><a href="/lk/admin/?payments=1">Оплаты Сбербанк</a><a href="/lk/admin/?services=1">Услуги клиентов</a><a href="/lk/admin/?tickets=1">Обращения</a><a href="/lk/admin/?leads=1">Заявки с сайта</a><a href="/lk/admin/?users=1">Клиенты</a><a href="/admin/?supply=1">Каталог оборудования</a><a href="/lk/admin/?staff=all">Сотрудники</a><a href="/lk/admin/?me=1">Мой профиль</a><a href="/lk/admin/?logout=1">Выйти</a>';
     echo '<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">'
         . '<title>' . h($title) . ' — менеджер ИНФОТЕХ</title><link rel="stylesheet" href="/assets/lk.css?v=' . @filemtime(PUBLIC_DIR . '/assets/lk.css') . '"></head><body class="lk mgr">'
-        . '<aside class="side"><a class="brand" href="/lk/admin/"><img src="/logo-light-s.png" alt="ИНФОТЕХ" height="34"></a><div class="who"><b>Кабинет менеджера</b></div><nav>' . $nav . '</nav></aside>'
-        . '<main class="work">' . lk_flash() . $body . '</main></body></html>';
+        . '<aside class="side"><a class="brand" href="/lk/admin/"><img src="/logo-light-s.png" alt="ИНФОТЕХ" height="34"></a><div class="who"><b>' . h($me ? ($me['name'] ?: $me['login']) : 'Кабинет менеджера') . '</b>' . ($me && $me['position'] ? '<br><small>' . h($me['position']) . '</small>' : '') . '</div><nav>' . $nav . '</nav></aside>'
+        . '<main class="work">' . $bd . lk_flash() . $body . '</main></body></html>';
     exit;
 }
 function mail_client(array $o, string $subject, string $text, ?array $att = null): void {
@@ -45,6 +53,7 @@ function mail_client(array $o, string $subject, string $text, ?array $att = null
 /* ---------- действия по заказу ---------- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     lk_check_csrf();
+    if (in_array($_POST['act'] ?? '', STAFF_ACTS, true)) adm_staff_post();
     if (in_array($_POST['act'] ?? '', BILL_ADMIN_ACTS, true)) adm_billing_post();
     if (in_array($_POST['act'] ?? '', ['pay_import', 'pay_bind', 'pay_ignore'], true)) adm_payments_post();
     if (in_array($_POST['act'] ?? '', ['svc_save', 'svc_hours', 'svc_hours_del', 'svc_renew', 'tk_reply', 'tk_status'], true)) adm_services_post();
@@ -103,6 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     lk_redirect($back);
 }
 if (isset($_GET['as'])) { $_SESSION['as'] = (int)$_GET['as']; lk_redirect('/lk/'); }
+adm_staff_get();      // чат, сотрудники, мой профиль
 adm_services_get();   // услуги, обращения (выходит сам, если страница его)
 adm_payments_get();
 adm_billing_get();
