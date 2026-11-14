@@ -157,3 +157,5 @@ update-catalog.sh при первом запуске ставит Python-пак�
 - Клиенты: https://pbk.spb.ru/lk/ · менеджер: https://pbk.spb.ru/lk/admin/ (логин/пароль — как в /admin/).
 - Вход и регистрация работают по коду на e-mail — без рабочей почты (SMTP) клиенты не смогут войти.
 - Автозаполнение реквизитов по ИНН: ключ DaData в app/config.php → 'dadata_token' => '...'.
+- Этап 2: серверы, сопровождение и ИТС клиентов ведутся в /lk/admin/ → «Услуги клиентов»; напоминания — таймер lk-daily (09:05).
+  Проверка без отправки писем: `sudo -u s_pbk_spb_ru php /var/www/pbk.spb.ru/app/cli-lk-daily.php --dry`

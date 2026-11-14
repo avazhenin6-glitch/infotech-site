@@ -25,4 +25,23 @@ if [[ -n "$POOL" ]] && ! grep -q 'upload_max_filesize' "$POOL"; then
   systemctl reload "$(basename "$(dirname "$(dirname "$(dirname "$POOL")")")" | sed 's/^/php/;s/$/-fpm/')" 2>/dev/null || systemctl reload php*-fpm 2>/dev/null || true
   echo "· PHP: загрузки до 20 МБ"
 fi
+# ежедневные напоминания о продлении услуг и снятие просроченных резервов (09:05)
+cat > /etc/systemd/system/lk-daily.service <<UNIT
+[Unit]
+Description=Личный кабинет $D: напоминания о продлении и резервы
+[Service]
+Type=oneshot
+User=$U
+ExecStart=/usr/bin/php $ROOT/app/cli-lk-daily.php
+UNIT
+cat > /etc/systemd/system/lk-daily.timer <<UNIT
+[Unit]
+Description=Личный кабинет $D: ежедневно
+[Timer]
+OnCalendar=*-*-* 09:05
+Persistent=true
+[Install]
+WantedBy=timers.target
+UNIT
+systemctl daemon-reload; systemctl enable --now lk-daily.timer >/dev/null 2>&1 && echo "· напоминания: ежедневно в 09:05"
 echo "Готово: https://$D/lk/  (менеджер: https://$D/lk/admin/ — логин и пароль как в /admin/)"

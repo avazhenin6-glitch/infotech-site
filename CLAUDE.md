@@ -27,7 +27,11 @@
   /lk/file.php (выдача документов с проверкой владельца), /lk/api.php (me, корзина, ИНН→DaData при 'dadata_token' в config.php).
   Заказ с сайта сам привязывается к аккаунту по e-mail (новый аккаунт создаётся); войти в него можно только кодом на этот e-mail.
   Счета, УПД, акты делает 1С:УНФ ИНФОТЕХ — менеджер прикрепляет PDF; счёт на оборудование действует 3 рабочих дня (lk_add_workdays), потом «Срок резерва истёк».
-  Сервер: server/lk-setup.sh (nginx /lk/, загрузки 20 МБ). Документы — app/data/lk-files (не публично).
+  Сервер: server/lk-setup.sh (nginx /lk/, загрузки 20 МБ, таймер lk-daily 09:05). Документы — app/data/lk-files (не публично).
+  Этап 2 (app/lk_services.php, app/lk_admin_services.php): услуги services (server/support/its; тариф INF-SRV-XX / INF-SUP-N из own_prices, paid_until,
+  обещанный платёж +3 дня раз за период, config_json, vpn_status, hours_month), service_hours (часы специалиста), tickets/ticket_msgs (обращения с вложениями).
+  Продление = заказ с orders.service_id; статус «Оплачен» в /lk/admin/ сам сдвигает paid_until. app/cli-lk-daily.php — напоминания за 7/3/1 день
+  (за 7 дней создаёт заказ на продление), просрочка → письмо менеджеру, снятие истёкших резервов. Состояние VPN и сервера менеджер ведёт вручную.
 - app/config.php и app/data/ — только на сервере, в репозиторий не попадают (.gitignore).
 
 ## Правила

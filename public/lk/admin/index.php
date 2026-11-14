@@ -23,9 +23,10 @@ if (empty($_SESSION['mgr'])) {
         . '<p class="muted">Логин и пароль — те же, что в админке заказов.</p></div>');
 }
 unset($_SESSION['as']);   // в кабинете менеджера — не «от имени клиента»
+require APP_DIR . '/lk_admin_services.php';
 
 function mgr_page(string $title, string $body): never {
-    $nav = '<a href="/lk/admin/">Заказы</a><a href="/lk/admin/?leads=1">Обращения и заявки</a><a href="/lk/admin/?users=1">Клиенты</a><a href="/admin/?supply=1">Каталог оборудования</a><a href="/lk/admin/?logout=1">Выйти</a>';
+    $nav = '<a href="/lk/admin/">Заказы</a><a href="/lk/admin/?services=1">Услуги клиентов</a><a href="/lk/admin/?tickets=1">Обращения</a><a href="/lk/admin/?leads=1">Заявки с сайта</a><a href="/lk/admin/?users=1">Клиенты</a><a href="/admin/?supply=1">Каталог оборудования</a><a href="/lk/admin/?logout=1">Выйти</a>';
     echo '<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">'
         . '<title>' . h($title) . ' — менеджер ИНФОТЕХ</title><link rel="stylesheet" href="/assets/lk.css?v=' . @filemtime(PUBLIC_DIR . '/assets/lk.css') . '"></head><body class="lk mgr">'
         . '<aside class="side"><a class="brand" href="/lk/admin/"><img src="/logo-light-s.png" alt="ИНФОТЕХ" height="34"></a><div class="who"><b>Кабинет менеджера</b></div><nav>' . $nav . '</nav></aside>'
@@ -42,6 +43,7 @@ function mail_client(array $o, string $subject, string $text, ?array $att = null
 /* ---------- действия по заказу ---------- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     lk_check_csrf();
+    if (in_array($_POST['act'] ?? '', ['svc_save', 'svc_hours', 'svc_hours_del', 'svc_renew', 'tk_reply', 'tk_status'], true)) adm_services_post();
     $st = $pdo->prepare('SELECT * FROM orders WHERE id=?'); $st->execute([(int)($_POST['id'] ?? 0)]);
     $o = $st->fetch();
     if (!$o) lk_redirect('/lk/admin/');
@@ -50,9 +52,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($act === 'status' && isset(LK_ST[$_POST['status'] ?? ''])) {
         $new = $_POST['status'];
         $pdo->prepare('UPDATE orders SET status=?, manager_note=?, updated_at=? WHERE id=?')->execute([$new, clean($_POST['note'] ?? '', 3000), date('Y-m-d H:i:s'), $o['id']]);
+        $ext = '';
+        if ($new === 'Оплачен' && $o['status'] !== 'Оплачен' && !empty($o['service_id']) && ($until = svc_apply_payment($o)))   // продление услуги
+            $ext = ' Услуга продлена, оплачено до ' . lk_date($until) . '.';
         if ($new !== $o['status'] && $o['type'] === 'order' && in_array($new, ['Оплачен', 'В работе', 'Выполнен', 'Отменён'], true))
-            mail_client($o, "Заказ {$o['number']}: " . LK_ST[$new][0], "Статус вашего заказа № {$o['number']} изменён: " . LK_ST[$new][0] . '.');
-        lk_flash('Сохранено');
+            mail_client($o, "Заказ {$o['number']}: " . LK_ST[$new][0], "Статус вашего заказа № {$o['number']} изменён: " . LK_ST[$new][0] . '.' . $ext);
+        lk_flash('Сохранено.' . $ext);
     } elseif ($act === 'doc') {
         $kind = isset(LK_DOC_KINDS[$_POST['kind'] ?? '']) ? $_POST['kind'] : 'other';
         try {
@@ -92,6 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     lk_redirect($back);
 }
 if (isset($_GET['as'])) { $_SESSION['as'] = (int)$_GET['as']; lk_redirect('/lk/'); }
+adm_services_get();   // услуги, обращения (выходит сам, если страница его)
 
 /* ---------- карточка заказа ---------- */
 if (isset($_GET['n'])) {
@@ -135,7 +141,7 @@ if (isset($_GET['users'])) {
     $rows = '';
     foreach ($pdo->query("SELECT u.*, (SELECT COUNT(*) FROM orders o WHERE o.user_id=u.id AND o.type='order') n FROM users u ORDER BY u.id DESC LIMIT 500") as $c)
         $rows .= '<tr><td>' . h($c['email']) . '</td><td>' . h($c['name']) . '</td><td>' . h($c['phone']) . '</td><td>' . (int)$c['n'] . '</td><td>' . lk_date($c['last_login'], true) . '</td>'
-            . '<td>' . ($c['pass_hash'] ? 'пароль' : ($c['verified'] ? 'код' : 'не входил')) . '</td><td><a href="?as=' . $c['id'] . '">кабинет клиента</a></td></tr>';
+            . '<td>' . ($c['pass_hash'] ? 'пароль' : ($c['verified'] ? 'код' : 'не входил')) . '</td><td><a href="?as=' . $c['id'] . '">кабинет клиента</a> · <a href="?svc=new&uid=' . $c['id'] . '">подключить услугу</a></td></tr>';
     mgr_page('Клиенты', '<h1>Клиенты</h1><div class="card cut"><table class="tbl"><thead><tr><th>E-mail</th><th>Имя</th><th>Телефон</th><th>Заказов</th><th>Последний вход</th><th>Вход</th><th></th></tr></thead><tbody>' . $rows . '</tbody></table></div>');
 }
 

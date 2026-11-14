@@ -26,8 +26,22 @@ if ($active) {
 }
 $w1 .= '</div>';
 
-$w2 = '<div class="card cut"><h2>Мои серверы и 1С</h2><p class="muted">Аренда серверов, договоры 1С:ИТС и пакеты часов сопровождения появятся в кабинете на следующем этапе: даты оплаты, остаток часов, напоминания о продлении.</p>'
-    . '<div class="acts"><a class="btn ghost" href="/uslugi/arenda-servera-1c/">Тарифы аренды</a><a class="btn ghost" href="/uslugi/soprovozhdenie-1c/">Сопровождение 1С</a></div></div>';
+$svcs = svc_for_user((int)$u['id']);
+if ($svcs) {
+    $li = '';
+    foreach ($svcs as $s) {
+        $d = svc_days_left($s);
+        $extra = $s['kind'] === 'support' && $s['hours_month'] > 0
+            ? ' · часы: ' . str_replace('.', ',', (string)round(svc_hours_used((int)$s['id']), 2)) . ' из ' . str_replace('.', ',', (string)(float)$s['hours_month'])
+            : ($s['kind'] === 'server' ? ' · ' . h($s['status']) : '');
+        $li .= '<li><b>' . h($s['title'] ?: SVC_KINDS[$s['kind']]) . '</b> ' . svc_badge($s) . '<br><span class="muted">до ' . lk_date(svc_until($s))
+            . ($d !== null ? ($d < 0 ? ' · просрочено' : ' · ' . $d . ' дн.') : '') . $extra . '</span></li>';
+    }
+    $w2 = '<div class="card cut"><h2>Мои серверы и 1С</h2><ul class="svclist">' . $li . '</ul><div class="acts"><a class="btn" href="/lk/services/">Управлять услугами</a></div></div>';
+} else {
+    $w2 = '<div class="card cut"><h2>Мои серверы и 1С</h2><p class="muted">Подключённых услуг нет. Здесь появятся аренда серверов, сопровождение 1С и договоры ИТС с датами оплаты и остатком часов.</p>'
+        . '<div class="acts"><a class="btn ghost" href="/uslugi/arenda-servera-1c/">Тарифы аренды</a><a class="btn ghost" href="/uslugi/soprovozhdenie-1c/">Сопровождение 1С</a></div></div>';
+}
 $mgr = $u['manager'] ?: 'Отдел продаж ИНФОТЕХ';
 $w3 = '<div class="card cut"><h2>Персональный менеджер</h2><p class="big">' . h($mgr) . '</p>'
     . '<p><a href="tel:+78129286884">8 (812) 928-68-84</a><br><a href="mailto:info@pbk.spb.ru">info@pbk.spb.ru</a><br><span class="muted">Пн–Пт, 9:00–18:00</span></p>'

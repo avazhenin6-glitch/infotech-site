@@ -96,3 +96,21 @@ label.chk{display:flex;gap:10px;align-items:flex-start;font-weight:400}label.chk
   .tabs.scroll{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}.tabs.scroll a{white-space:nowrap}
   .filters label{min-width:100%}
 }
+/* этап 2: услуги, часы, обращения */
+.svc-h{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}.svc-h h2{margin:2px 0 0}
+.kind{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);font-weight:500}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:7px 20px;font-size:14.5px;margin-bottom:6px}.kv span{color:var(--muted)}.kv b{font-weight:500}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:1px}.dot.ok{background:var(--ok)}.dot.bad{background:var(--bad)}
+.neg{color:var(--bad);font-weight:500}
+.hours{margin-top:16px;padding-top:14px;border-top:1px solid var(--sky)}.hours-h{display:flex;justify-content:space-between;gap:12px;font-size:14px;margin-bottom:8px}
+.bar{height:12px;background:var(--sky);position:relative;overflow:hidden;--c:6px;clip-path:polygon(var(--c) 0,100% 0,100% calc(100% - var(--c)),calc(100% - var(--c)) 100%,0 100%,0 var(--c))}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--slate)}.bar.over i{background:var(--wait)}
+details{margin-top:12px}summary{cursor:pointer;color:var(--slate);font-weight:500;font-size:14px;margin-bottom:8px}
+form.scale{margin-top:14px;width:100%}
+.svclist{list-style:none;display:grid;gap:12px}.svclist li{font-size:14.5px}
+.thread{display:grid;gap:12px;margin-top:6px}
+.msg{--c:12px;padding:14px 16px;max-width:85%;border:1px solid var(--sky)}
+.msg.me{background:var(--ghost);justify-self:end}.msg.them{background:#fff;border-left:3px solid var(--slate)}
+.msg-h{display:flex;gap:12px;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:6px}.msg-h b{color:var(--deep)}
+.msg-t{font-size:15px;word-wrap:break-word}.msg-f{display:inline-block;margin-top:8px;font-size:13.5px}
+@media(max-width:992px){.msg{max-width:100%}.kv{grid-template-columns:1fr;gap:2px}.kv b{margin-bottom:6px}}

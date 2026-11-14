@@ -320,3 +320,4 @@ function lk_dadata_inn(string $inn): ?array {
     $d = $s['data'];
     return ['inn' => $d['inn'] ?? $inn, 'kpp' => $d['kpp'] ?? '', 'ogrn' => $d['ogrn'] ?? '', 'name' => $s['value'] ?? '', 'address' => $d['address']['unrestricted_value'] ?? ($d['address']['value'] ?? '')];
 }
+require_once __DIR__ . '/lk_services.php';
