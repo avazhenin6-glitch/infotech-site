@@ -15,9 +15,12 @@ if ($active) {
     foreach (lk_docs_for_order((int)$active['id']) as $d) if ($d['kind'] === 'invoice' && !$d['blocked']) { $inv = $d; break; }
     $w1 .= '<p class="big"><a href="/lk/orders/?n=' . urlencode($active['number']) . '">№ ' . h($active['number']) . '</a> ' . lk_badge($active['status']) . '</p>'
         . '<p class="muted">от ' . lk_date($active['created_at']) . ' · позиций: ' . count(lk_items($active))
-        . ($active['status'] === 'Счёт выставлен' && $active['has_hw'] && $active['valid_until'] ? ' · счёт действует до ' . lk_date($active['valid_until'], true) : '') . '</p><div class="acts">'
+        . ($active['status'] === 'Счёт выставлен' && $active['has_hw'] && $active['valid_until'] ? ' · счёт действует до ' . lk_date($active['valid_until'], true) : '') . '</p>'
+        . ((float)($active['paid_amount'] ?? 0) > 0 ? (function ($o) { $due = pay_due($o); $pct = $due > 0 ? min(100, (int)round((float)$o['paid_amount'] / $due * 100)) : 100;
+            return '<div class="paybar" title="Оплачено ' . $pct . '%"><i style="width:' . $pct . '%"></i></div><p class="muted">Оплачено ' . money_rub((float)$o['paid_amount']) . ' из ' . money_rub($due) . '</p>'; })($active) : '')
+        . '<div class="acts">'
         . ($inv ? '<a class="btn" href="/lk/file.php?id=' . $inv['id'] . '">Скачать счёт (PDF)</a>' : '')
-        . ($active['status'] === 'Счёт выставлен' ? '<a class="btn ghost" href="/lk/orders/?n=' . urlencode($active['number']) . '#pay">Прикрепить платёжное поручение</a>' : '')
+        . (in_array($active['status'], ['Счёт выставлен', 'Частично оплачен'], true) ? '<a class="btn ghost" href="/lk/orders/?n=' . urlencode($active['number']) . '#pay">Прикрепить платёжное поручение</a>' : '')
         . ($active['status'] === 'Срок резерва истёк' ? '<a class="btn" href="/lk/orders/?n=' . urlencode($active['number']) . '#reissue">Обновить цены и перевыставить счёт</a>' : '')
         . '<a class="btn ghost" href="/lk/kp.php?n=' . urlencode($active['number']) . '">КП для руководства (PDF)</a></div>';
     if ($active['status'] === 'Новый') $w1 .= '<p class="muted">Менеджер проверит наличие и выставит счёт — он появится здесь и придёт на почту.</p>';

@@ -114,3 +114,6 @@ form.scale{margin-top:14px;width:100%}
 .msg-h{display:flex;gap:12px;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:6px}.msg-h b{color:var(--deep)}
 .msg-t{font-size:15px;word-wrap:break-word}.msg-f{display:inline-block;margin-top:8px;font-size:13.5px}
 @media(max-width:992px){.msg{max-width:100%}.kv{grid-template-columns:1fr;gap:2px}.kv b{margin-bottom:6px}}
+/* оплаты */
+.paybar{height:8px;background:var(--sky);overflow:hidden;margin:10px 0 4px}
+.paybar i{display:block;height:100%;background:var(--slate)}

@@ -38,6 +38,10 @@ return [
     // Telegram с сервера доступен через прокси Xray (тот же, что у vazhenin.consulting).
     // Формат: http://127.0.0.1:10809  или  socks5h://127.0.0.1:10808 . Пусто — без прокси.
     'telegram_proxy'     => '',
+
+    // Вебхук оплат из 1С:УНФ (POST /api/v1/payments/callback, подпись HMAC-SHA256). 64 hex-символа: openssl rand -hex 32.
+    // server/lk-setup.sh создаёт его сам. Тот же секрет вписывается в расширение 1С. Пусто — вебхук выключен.
+    'payments_secret' => '',
     // Либо адрес ретранслятора на сервере в Узбекистане (nginx → api.telegram.org), например
     // 'https://uz.example.ru/секретный-путь'. Пусто — напрямую https://api.telegram.org.
     'telegram_api'       => '',

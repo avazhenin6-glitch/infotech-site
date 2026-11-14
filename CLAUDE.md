@@ -32,6 +32,12 @@
   обещанный платёж +3 дня раз за период, config_json, vpn_status, hours_month), service_hours (часы специалиста), tickets/ticket_msgs (обращения с вложениями).
   Продление = заказ с orders.service_id; статус «Оплачен» в /lk/admin/ сам сдвигает paid_until. app/cli-lk-daily.php — напоминания за 7/3/1 день
   (за 7 дней создаёт заказ на продление), просрочка → письмо менеджеру, снятие истёкших резервов. Состояние VPN и сервера менеджер ведёт вручную.
+  Оплаты (ТЗ ЛК v2, app/lk_payments.php, app/lk_admin_payments.php): таблица bank_transactions, в orders — paid_amount, invoice_number/date/amount
+  (сумма счёта вводится при загрузке PDF счёта). Разнесение: номер заказа ИТ-ггммдд-N или «счёт № X от дата» в назначении → ровно один открытый заказ → проверка ИНН;
+  неполная сумма → «Частично оплачен», полная → «Оплачен» + продление услуги. Иначе — /lk/admin/?payments=1 «Неразнесённые», привязка в 1 клик.
+  Контур А: вебхук 1С POST /api/v1/payments/callback → public/api/payments-callback.php, HMAC-SHA256(X-Timestamp.".".body), секрет payments_secret в config.php
+  (создаёт lk-setup.sh), описание и код для УНФ — docs/1c-payments-webhook.md. Контур В: загрузка выписки 1CClientBankExchange (.txt, Windows-1251).
+  Отложено: прямой API Сбера (нужны доступы и сертификаты), QR СБП (нужен эквайринг). Напоминания клиентам в Telegram не делаем (ПД за рубеж).
 - app/config.php и app/data/ — только на сервере, в репозиторий не попадают (.gitignore).
 
 ## Правила

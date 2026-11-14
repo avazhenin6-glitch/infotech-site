@@ -24,9 +24,10 @@ if (empty($_SESSION['mgr'])) {
 }
 unset($_SESSION['as']);   // в кабинете менеджера — не «от имени клиента»
 require APP_DIR . '/lk_admin_services.php';
+require APP_DIR . '/lk_admin_payments.php';
 
 function mgr_page(string $title, string $body): never {
-    $nav = '<a href="/lk/admin/">Заказы</a><a href="/lk/admin/?services=1">Услуги клиентов</a><a href="/lk/admin/?tickets=1">Обращения</a><a href="/lk/admin/?leads=1">Заявки с сайта</a><a href="/lk/admin/?users=1">Клиенты</a><a href="/admin/?supply=1">Каталог оборудования</a><a href="/lk/admin/?logout=1">Выйти</a>';
+    $nav = '<a href="/lk/admin/">Заказы</a><a href="/lk/admin/?payments=1">Оплаты Сбербанк</a><a href="/lk/admin/?services=1">Услуги клиентов</a><a href="/lk/admin/?tickets=1">Обращения</a><a href="/lk/admin/?leads=1">Заявки с сайта</a><a href="/lk/admin/?users=1">Клиенты</a><a href="/admin/?supply=1">Каталог оборудования</a><a href="/lk/admin/?logout=1">Выйти</a>';
     echo '<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">'
         . '<title>' . h($title) . ' — менеджер ИНФОТЕХ</title><link rel="stylesheet" href="/assets/lk.css?v=' . @filemtime(PUBLIC_DIR . '/assets/lk.css') . '"></head><body class="lk mgr">'
         . '<aside class="side"><a class="brand" href="/lk/admin/"><img src="/logo-light-s.png" alt="ИНФОТЕХ" height="34"></a><div class="who"><b>Кабинет менеджера</b></div><nav>' . $nav . '</nav></aside>'
@@ -43,6 +44,7 @@ function mail_client(array $o, string $subject, string $text, ?array $att = null
 /* ---------- действия по заказу ---------- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     lk_check_csrf();
+    if (in_array($_POST['act'] ?? '', ['pay_import', 'pay_bind', 'pay_ignore'], true)) adm_payments_post();
     if (in_array($_POST['act'] ?? '', ['svc_save', 'svc_hours', 'svc_hours_del', 'svc_renew', 'tk_reply', 'tk_status'], true)) adm_services_post();
     $st = $pdo->prepare('SELECT * FROM orders WHERE id=?'); $st->execute([(int)($_POST['id'] ?? 0)]);
     $o = $st->fetch();
@@ -68,6 +70,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             lk_add_document($o, $kind, $stored, LK_DOC_KINDS[$kind], $number, $date, 'manager');
             $label = LK_DOC_KINDS[$kind] . ($number ? " № $number" : '');
             if ($kind === 'invoice') {
+                $amount = (float)str_replace([' ', ','], ['', '.'], (string)($_POST['amount'] ?? '0'));
+                pay_db()->prepare('UPDATE orders SET invoice_number=?, invoice_date=?, invoice_amount=? WHERE id=?')->execute([$number ?: null, $date, $amount > 0 ? $amount : null, $o['id']]);
                 $pdo->prepare("UPDATE documents SET blocked=1 WHERE order_id=? AND kind='invoice' AND file<>?")->execute([$o['id'], $stored['file']]);  // старые счета больше не действуют
                 $until = $o['has_hw'] ? lk_add_workdays($date, 3) : null;
                 if (in_array($o['status'], ['Новый', 'Срок резерва истёк', 'Счёт выставлен'], true))
@@ -98,6 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 if (isset($_GET['as'])) { $_SESSION['as'] = (int)$_GET['as']; lk_redirect('/lk/'); }
 adm_services_get();   // услуги, обращения (выходит сам, если страница его)
+adm_payments_get();
 
 /* ---------- карточка заказа ---------- */
 if (isset($_GET['n'])) {
@@ -116,6 +121,10 @@ if (isset($_GET['n'])) {
         $docs .= '<tr><td>' . h(LK_DOC_KINDS[$d['kind']] ?? '') . ($d['number'] ? ' № ' . h($d['number']) : '') . '</td><td>' . lk_date($d['doc_date']) . '</td><td>' . ($d['uploaded_by'] === 'client' ? 'клиент' : 'менеджер') . '</td>'
             . '<td>' . ($d['blocked'] ? '<span class="badge bad">недействителен</span>' : '<span class="badge ok">действует</span>') . '</td><td><a href="/lk/file.php?id=' . $d['id'] . '" target="_blank">Открыть</a>'
             . ($d['blocked'] ? '' : ' <form method="post" class="inline">' . $f() . '<input type="hidden" name="act" value="deldoc"><input type="hidden" name="doc" value="' . $d['id'] . '"><button class="link">аннулировать</button></form>') . '</td></tr>';
+    $pays = '';
+    foreach (pay_history((int)$o['id']) as $p) $pays .= '<tr><td>' . lk_date($p['payment_date']) . '</td><td>п/п № ' . h($p['payment_order_num']) . '</td><td>' . money_rub((float)$p['amount']) . '</td><td>' . h($p['source']) . ' · ' . h($p['match_note']) . '</td></tr>';
+    $payCard = '<div class="card cut"><h2>Оплаты</h2><p>К оплате: <b>' . money_rub(pay_due($o)) . '</b>' . ($o['invoice_amount'] ? ' (по счёту № ' . h($o['invoice_number']) . ')' : ' (по прайсу — укажите сумму счёта при загрузке)') . ' · оплачено: <b>' . money_rub((float)$o['paid_amount']) . '</b></p>'
+        . ($pays ? '<table class="tbl"><tbody>' . $pays . '</tbody></table>' : '<p class="muted">Поступлений нет.</p>') . '</div>';
     $body = '<p><a href="/lk/admin/">← Все заказы</a></p><h1>Заказ № ' . h($o['number']) . ' ' . lk_badge($o['status']) . '</h1>'
         . '<div class="grid2"><div class="card cut"><h2>Клиент</h2><p><b>' . h($o['name']) . '</b><br>' . h($o['email']) . '<br>' . h($o['phone']) . '<br>' . h($o['company'] ?: 'Физлицо') . ($o['inn'] ? ', ИНН ' . h($o['inn']) : '') . '</p>'
         . '<p class="muted">' . h($o['delivery']) . ' · ' . h($o['payment']) . ($o['comment'] ? '<br>Комментарий: ' . nl2br(h($o['comment'])) : '') . '</p>'
@@ -125,9 +134,9 @@ if (isset($_GET['n'])) {
         . ($o['valid_until'] ? '<p class="muted">Резерв / счёт действует до ' . lk_date($o['valid_until'], true) . '</p>' : '') . '</div></div>'
         . '<div class="card cut"><h2>Позиции</h2><table class="tbl"><thead><tr><th>Наименование</th><th>Артикул</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr></thead><tbody>' . $rows . '</tbody></table>'
         . '<p class="total">Итого по прайсу: <b>' . money_rub((float)$o['total_rub']) . ((float)$o['total_usd'] ? ' + ' . money_usd((float)$o['total_usd']) : '') . '</b></p><p><a href="/lk/kp.php?n=' . urlencode($o['number']) . '" target="_blank">КП в PDF</a></p></div>'
-        . '<div class="card cut"><h2>Документы</h2>' . ($docs ? '<table class="tbl"><tbody>' . $docs . '</tbody></table>' : '<p class="muted">Документов нет.</p>')
+        . $payCard . '<div class="card cut"><h2>Документы</h2>' . ($docs ? '<table class="tbl"><tbody>' . $docs . '</tbody></table>' : '<p class="muted">Документов нет.</p>')
         . '<h3>Прикрепить документ из 1С</h3><form method="post" enctype="multipart/form-data" class="filters">' . $f() . '<input type="hidden" name="act" value="doc">'
-        . '<label>Тип<select name="kind">' . $kinds . '</select></label><label>Номер<input name="number" maxlength="50"></label><label>Дата<input type="date" name="date" value="' . date('Y-m-d') . '"></label>'
+        . '<label>Тип<select name="kind">' . $kinds . '</select></label><label>Номер<input name="number" maxlength="50"></label><label>Дата<input type="date" name="date" value="' . date('Y-m-d') . '"></label><label>Сумма счёта, ₽ (для сверки оплат)<input name="amount" inputmode="decimal" placeholder="' . h(number_format((float)$o['total_rub'], 2, ',', '')) . '"></label>'
         . '<label>Файл (PDF)<input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required></label><button class="btn">Прикрепить и уведомить клиента</button></form>'
         . '<p class="muted">Счёт переводит заказ в «Ожидает оплаты»' . ($o['has_hw'] ? ' и запускает резерв на 3 банковских дня (в заказе есть оборудование)' : '') . '. Предыдущие счета становятся недействительными.</p></div>'
         . '<div class="card cut"><h2>Электронные поставки и ключи</h2><form method="post">' . $f() . '<input type="hidden" name="act" value="keys">'

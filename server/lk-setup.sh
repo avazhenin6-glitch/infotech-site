@@ -18,6 +18,20 @@ if ! grep -q 'location ^~ /lk/' "$NG"; then
   if grep -q 'location ^~ /lk/' "$NG" && nginx -t 2>/tmp/nginx-test.log; then systemctl reload nginx; echo "· nginx: /lk/ подключён"
   else cp "$B" "$NG"; echo "!! nginx: не удалось, конфигурация возвращена"; cat /tmp/nginx-test.log 2>/dev/null; exit 1; fi
 fi
+# Контур А оплат: вебхук 1С → /api/v1/payments/callback (подпись HMAC, секрет в app/config.php)
+if ! grep -q 'payments/callback' "$NG"; then
+  B="$NG.bak-$(date +%F-%H%M%S)"; cp "$NG" "$B"
+  CB="    location = /api/v1/payments/callback {\n        include fastcgi_params;\n        fastcgi_param SCRIPT_FILENAME \$document_root/api/payments-callback.php;\n        fastcgi_pass $SOCK;\n    }"
+  sed -i "/location ~ \\\\\\.php\\\$ { return 404; }/i\\$CB" "$NG"
+  if grep -q 'payments/callback' "$NG" && nginx -t 2>/tmp/nginx-test.log; then systemctl reload nginx; echo "· nginx: вебхук оплат подключён"
+  else cp "$B" "$NG"; echo "!! nginx: вебхук не подключён, конфигурация возвращена"; cat /tmp/nginx-test.log 2>/dev/null; fi
+fi
+CFG="$ROOT/app/config.php"
+if [[ -f "$CFG" ]] && ! grep -q "'payments_secret'" "$CFG"; then
+  SEC=$(openssl rand -hex 32)
+  sed -i "0,/^return \[/s//return [\n    'payments_secret' => '$SEC',   \/\/ вебхук оплат 1С (HMAC-SHA256)/" "$CFG"
+  echo "· Создан секрет вебхука оплат. Посмотреть для настройки 1С: sudo grep payments_secret $CFG"
+fi
 # PHP-FPM пула сайта: загрузка файлов до 20 МБ
 POOL=$(grep -l "\[$U\]" /etc/php/*/fpm/pool.d/*.conf 2>/dev/null | head -1 || true)
 if [[ -n "$POOL" ]] && ! grep -q 'upload_max_filesize' "$POOL"; then

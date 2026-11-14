@@ -133,6 +133,12 @@ server {
         include snippets/fastcgi-php.conf;
         fastcgi_pass unix:$SOCK;
     }
+    location = /api/v1/payments/callback {
+        limit_req zone=infotech_api burst=20 nodelay;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME \$document_root/api/payments-callback.php;
+        fastcgi_pass unix:$SOCK;
+    }
     location ^~ /admin/ {
         location ~ \.php\$ { include snippets/fastcgi-php.conf; fastcgi_pass unix:$SOCK; }
         index index.php;
