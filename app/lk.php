@@ -213,7 +213,7 @@ function lk_docs_for_order(int $orderId): array {
 
 /* ---------------- письмо с вложением ---------------- */
 function send_mail_attach(string $to, string $subject, string $text, string $path, string $fname, string $mime): bool {
-    if (cfg('mail_transport') === 'none' || !$to) return false;
+    if (cfg('mail_transport') === 'none' || !$to || str_ends_with($to, '.invalid')) return false;   // .invalid — клиент без e-mail
     $b = 'b' . bin2hex(random_bytes(8));
     $from = cfg('mail_from'); $fromName = cfg('mail_from_name');
     $headers = 'From: =?UTF-8?B?' . base64_encode($fromName) . "?= <$from>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"$b\"\r\n";
@@ -307,9 +307,9 @@ function lk_is_manager(): bool { lk_session(); return !empty($_SESSION['mgr']); 
 
 /* DaData: организация по ИНН (ключ — app/config.php 'dadata_token'; без ключа — ручной ввод) */
 function lk_dadata_inn(string $inn): ?array {
-    $token = (string)cfg('dadata_token');
+    $token = function_exists('crm_dadata_token') ? crm_dadata_token() : (string)cfg('dadata_token');
     if (!$token || !preg_match('/^\d{10}(\d{2})?$/', $inn) || !function_exists('curl_init')) return null;
-    $ch = curl_init('https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party');
+    $ch = curl_init((string)(cfg('dadata_url') ?: 'https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party'));   // dadata_url — только для тестового стенда
     curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 6,
         CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Accept: application/json', 'Authorization: Token ' . $token],
         CURLOPT_POSTFIELDS => json_encode(['query' => $inn])]);
@@ -317,7 +317,9 @@ function lk_dadata_inn(string $inn): ?array {
     $s = $r['suggestions'][0] ?? null;
     if (!$s) return null;
     $d = $s['data'];
-    return ['inn' => $d['inn'] ?? $inn, 'kpp' => $d['kpp'] ?? '', 'ogrn' => $d['ogrn'] ?? '', 'name' => $s['value'] ?? '', 'address' => $d['address']['unrestricted_value'] ?? ($d['address']['value'] ?? '')];
+    return ['inn' => $d['inn'] ?? $inn, 'kpp' => $d['kpp'] ?? '', 'ogrn' => $d['ogrn'] ?? '', 'name' => $s['value'] ?? '', 'address' => $d['address']['unrestricted_value'] ?? ($d['address']['value'] ?? ''),
+            'full_name' => $d['name']['full_with_opf'] ?? '', 'director' => $d['management']['name'] ?? (($d['type'] ?? '') === 'INDIVIDUAL' ? ($d['fio']['surname'] ?? '') . ' ' . ($d['fio']['name'] ?? '') . ' ' . ($d['fio']['patronymic'] ?? '') : ''),
+            'status' => $d['state']['status'] ?? ''];
 }
 require_once __DIR__ . '/lk_services.php';
 require_once __DIR__ . '/lk_payments.php';
@@ -325,3 +327,4 @@ require_once __DIR__ . '/workcal.php';
 require_once __DIR__ . '/mikrotik.php';
 require_once __DIR__ . '/billing.php';
 require_once __DIR__ . '/staff.php';
+require_once __DIR__ . '/crm.php';

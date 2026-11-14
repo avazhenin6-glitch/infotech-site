@@ -32,6 +32,9 @@ function bill_db(): PDO {
     $cols = array_column($pdo->query('PRAGMA table_info(orders)')->fetchAll(), 'name');
     foreach (['bill_period' => 'TEXT', 'bill_invoice_id' => 'INTEGER'] as $c => $t)
         if (!in_array($c, $cols, true)) $pdo->exec("ALTER TABLE orders ADD COLUMN $c $t");
+    $cols = array_column($pdo->query('PRAGMA table_info(invoices)')->fetchAll(), 'name');
+    foreach (['legacy' => 'INTEGER DEFAULT 0', 'bank_id' => 'TEXT', 'basis' => 'TEXT', 'company_id' => 'INTEGER'] as $c => $t)   // legacy — счёт из 1С: без авто-напоминаний и отключений
+        if (!in_array($c, $cols, true)) $pdo->exec("ALTER TABLE invoices ADD COLUMN $c $t");
     $done = true;
     return $pdo;
 }
@@ -69,12 +72,7 @@ function bill_amount(array $s, string $ym, ?string $from = null): float {
 }
 
 /* ---------- реквизиты ---------- */
-function bill_bank(): array {
-    $b = cfg('bank');
-    if (!is_array($b) || empty($b['account']) || empty($b['bik']) || empty($b['name']) || empty($b['corr']))
-        throw new RuntimeException('Не заполнены банковские реквизиты ИНФОТЕХ (app/config.php → bank): счёт не выставлен');
-    return $b;
-}
+function bill_bank(?string $id = null): array { return crm_bank($id); }   // расчётные счета — «Настройки» (app/crm.php), запасной — config 'bank'
 function bill_next_seq(): int { return (int)bill_db()->query('SELECT COALESCE(MAX(seq),0)+1 FROM invoices')->fetchColumn(); }
 function bill_number(int $seq): string { return 'ИТ-' . str_pad((string)$seq, 6, '0', STR_PAD_LEFT); }
 
@@ -84,52 +82,81 @@ function bill_invoice_for(int $sid, string $ym): ?array {
     return $st->fetch() ?: null;
 }
 function bill_issue(array $s, string $ym, ?string $from = null, string $by = 'cron', ?string $today = null): array {
-    $pdo = bill_db(); $today ??= bill_today();
+    $today ??= bill_today();
     if ($inv = bill_invoice_for((int)$s['id'], $ym)) return $inv;
-    bill_bank();
     $amount = bill_amount($s, $ym, $from);
     if ($amount <= 0) throw new RuntimeException('У услуги не задана цена — счёт не выставлен');
-    $u = $pdo->query('SELECT * FROM users WHERE id=' . (int)$s['user_id'])->fetch();
-    $c = $s['company_id'] ? $pdo->query('SELECT * FROM user_companies WHERE id=' . (int)$s['company_id'])->fetch() : null;
     $title = $s['title'] ?: SVC_KINDS[$s['kind']];
     $partial = $from && $from > "$ym-01";
     $itemName = 'Аренда виртуального сервера «' . $title . '» за ' . bill_month_name($ym)
         . ($partial ? ' (с ' . date('d.m.Y', strtotime($from)) . ', ' . (bill_days($from, bill_month_end($ym)) + 1) . ' из ' . date('t', strtotime("$ym-01")) . ' дн.)' : '');
-    $item = ['code' => (string)($s['tariff_code'] ?: 'SVC-' . $s['id']), 'name' => $itemName, 'qty' => 1, 'price' => $amount, 'cur' => 'RUB', 'sum' => $amount, 'e' => 2];
     $due = bill_due($ym);
     if ($due < $today) $due = wc_add_workdays($today, BILL_DUE_WORKDAY);   // счёт за уже идущий месяц — 5 рабочих дней с сегодняшнего
-    $now = date('Y-m-d H:i:s');
+    $basis = (string)($s['contract'] ?: '');
+    if ($basis === '' && $s['company_id']) $basis = (string)lk_db()->query('SELECT contract FROM user_companies WHERE id=' . (int)$s['company_id'])->fetchColumn();
+    $inv = inv_create(['user_id' => (int)$s['user_id'], 'company_id' => $s['company_id'] ? (int)$s['company_id'] : null, 'service_id' => (int)$s['id'],
+        'period' => $ym, 'period_from' => $partial ? $from : null, 'date' => $today, 'due' => $due, 'basis' => $basis, 'by' => $by, 'send' => true,
+        'items' => [['code' => (string)($s['tariff_code'] ?: ''), 'name' => $itemName, 'qty' => 1, 'unit' => 'мес.', 'price' => $amount]],
+        'comment' => 'Счёт за ' . bill_month_name($ym) . ($by === 'cron' ? ' (выставлен автоматически)' : ''), 'delivery' => 'Аренда сервера',
+        'mail' => ["Счёт № {num} за " . bill_month_name($ym) . " — аренда сервера",
+                   "за аренду сервера «{$title}» на " . bill_month_name($ym) . ".\nОплатите, пожалуйста, до {due} включительно. В назначении платежа укажите номер счёта — так оплата зачтётся автоматически.\n\n"
+                   . "Если оплата не поступит в срок, доступ к серверу будет приостановлен (данные сохраняются)."]]);
+    bill_log((int)$s['id'], 'invoice', "счёт {$inv['number']} на " . money_rub($amount) . " за " . bill_month_name($ym) . ", срок " . lk_date($due), $by);
+    return $inv;
+}
+
+/* Любой счёт CRM: позиции, расчётный счёт, основание. number — номер счёта из 1С при импорте (иначе ИТ-000001…). */
+function inv_create(array $p): array {
+    $pdo = bill_db(); $now = date('Y-m-d H:i:s');
+    $date = $p['date'] ?? bill_today();
+    $bank = crm_bank($p['bank_id'] ?? null);
+    $items = []; $total = 0.0;
+    foreach ((array)($p['items'] ?? []) as $it) {
+        $name = trim((string)($it['name'] ?? '')); $qty = (float)($it['qty'] ?? 0); $price = round((float)($it['price'] ?? 0), 2);
+        if ($name === '' || $qty <= 0) continue;
+        $sum = isset($it['sum']) && (float)$it['sum'] > 0 ? round((float)$it['sum'], 2) : round($qty * $price, 2);
+        $items[] = ['code' => (string)($it['code'] ?? ''), 'name' => mb_substr($name, 0, 500), 'qty' => $qty, 'unit' => mb_substr((string)($it['unit'] ?? 'шт') ?: 'шт', 0, 10), 'price' => $price, 'cur' => 'RUB', 'sum' => $sum, 'e' => 2];
+        $total += $sum;
+    }
+    $total = round($total, 2);
+    if (!$items || $total <= 0) throw new RuntimeException('В счёте нет позиций с суммой');
+    $u = $pdo->query('SELECT * FROM users WHERE id=' . (int)$p['user_id'])->fetch();
+    if (!$u) throw new RuntimeException('Клиент не найден');
+    $c = !empty($p['company_id']) ? $pdo->query('SELECT * FROM user_companies WHERE id=' . (int)$p['company_id'])->fetch() : null;
+    $ext = trim((string)($p['number'] ?? ''));
+    if ($ext !== '') { $st = $pdo->prepare('SELECT 1 FROM invoices WHERE number=?'); $st->execute([$ext]); if ($st->fetchColumn()) throw new RuntimeException("Счёт № $ext уже есть в CRM"); }
+    $due = $p['due'] ?? wc_add_workdays($date, BILL_DUE_WORKDAY);
+    $by = (string)($p['by'] ?? 'менеджер');
     $pdo->beginTransaction();
     try {
         $pdo->prepare("INSERT INTO orders (type, status, created_at, name, email, phone, inn, company, delivery, payment, comment, total_rub, total_usd, items_json, user_id, company_id, service_id, renew_months, has_hw, updated_at, bill_period)
                        VALUES ('order','Счёт выставлен',?,?,?,?,?,?,?,?,?,?,0,?,?,?,?,1,0,?,?)")
-            ->execute([$now, $u['name'], $u['email'], $u['phone'], $c['inn'] ?? '', $c['name'] ?? '', 'Аренда сервера', 'Безналичный расчёт по счёту',
-                       "Счёт за " . bill_month_name($ym) . ($by === 'cron' ? ' (выставлен автоматически)' : ''), $amount,
-                       json_encode([$item], JSON_UNESCAPED_UNICODE), $s['user_id'], $s['company_id'], $s['id'], $now, $ym]);
+            ->execute([$date . date(' H:i:s'), $u['name'], $u['email'], $u['phone'], $c['inn'] ?? '', $c['name'] ?? '', (string)($p['delivery'] ?? ''), 'Безналичный расчёт по счёту',
+                       (string)($p['comment'] ?? ''), $total, json_encode($items, JSON_UNESCAPED_UNICODE), $u['id'], $c['id'] ?? null, $p['service_id'] ?? null, $now, !empty($p['service_id']) ? ($p['period'] ?? null) : null]);
         $oid = (int)$pdo->lastInsertId();
-        $onum = 'ИТ-' . date('ymd', strtotime($today)) . '-' . $oid;
-        $seq = bill_next_seq(); $num = bill_number($seq);
-        $pdo->prepare('INSERT INTO invoices (seq, number, order_id, service_id, user_id, period, period_from, issued, due, amount, created_by, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
-            ->execute([$seq, $num, $oid, $s['id'], $s['user_id'], $ym, $partial ? $from : null, $today, $due, $amount, $by, $now]);
+        $onum = 'ИТ-' . date('ymd', strtotime($date)) . '-' . $oid;
+        if ($ext !== '') { $seq = (int)$pdo->query('SELECT min(COALESCE(MIN(seq),0), 0) - 1 FROM invoices')->fetchColumn(); $num = $ext; }
+        else { $seq = bill_next_seq(); $num = bill_number($seq); }
+        $pdo->prepare('INSERT INTO invoices (seq, number, order_id, service_id, user_id, company_id, period, period_from, issued, due, amount, bank_id, basis, legacy, created_by, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+            ->execute([$seq, $num, $oid, $p['service_id'] ?? null, $u['id'], $c['id'] ?? null, $p['period'] ?? null, $p['period_from'] ?? null, $date, $due, $total, (string)$bank['id'], (string)($p['basis'] ?? ''), !empty($p['legacy']) ? 1 : 0, $by, $now]);
         $iid = (int)$pdo->lastInsertId();
-        $pdo->prepare('UPDATE orders SET number=?, invoice_number=?, invoice_date=?, invoice_amount=?, bill_invoice_id=? WHERE id=?')->execute([$onum, $num, $today, $amount, $iid, $oid]);
+        $pdo->prepare('UPDATE orders SET number=?, invoice_number=?, invoice_date=?, invoice_amount=?, bill_invoice_id=? WHERE id=?')->execute([$onum, $num, $date, $total, $iid, $oid]);
         $pdo->commit();
     } catch (Throwable $e) { $pdo->rollBack(); throw $e; }
     $o = $pdo->query("SELECT * FROM orders WHERE id=$oid")->fetch();
     $inv = $pdo->query("SELECT * FROM invoices WHERE id=$iid")->fetch();
-    $stored = bill_pdf_store($inv, $o, $s, $c, $u);
-    $doc = lk_add_document($o, 'invoice', $stored, LK_DOC_KINDS['invoice'] ?? 'Счёт', $num, $today, 'crm');
+    $stored = inv_pdf_store($inv, $o, $c ?: null, $u, $bank);
+    $doc = lk_add_document($o, 'invoice', $stored, LK_DOC_KINDS['invoice'] ?? 'Счёт', $num, $date, 'crm');
     $pdo->prepare('UPDATE invoices SET doc_id=? WHERE id=?')->execute([$doc, $iid]);
     $inv['doc_id'] = $doc;
-    if ($u['email'])
-        send_mail_attach($u['email'], "Счёт № $num за " . bill_month_name($ym) . " — аренда сервера",
-            "Здравствуйте" . ($u['name'] ? ", {$u['name']}" : '') . "!\n\nВо вложении счёт № $num от " . lk_date($today) . " на " . money_rub($amount)
-            . " за аренду сервера «{$title}» на " . bill_month_name($ym) . ".\nОплатите, пожалуйста, до " . lk_date($due) . " включительно."
-            . " В назначении платежа укажите номер счёта — так оплата зачтётся автоматически.\n\n"
-            . "Если оплата не поступит в срок, доступ к серверу будет приостановлен (данные сохраняются).\n"
-            . "Счёт и история оплат — в личном кабинете: " . LK_SITE . '/lk/orders/?n=' . urlencode($o['number']) . "\n\nООО «ИНФОТЕХ», 8 (812) 928-68-84, info@pbk.spb.ru",
+    if (!empty($p['send']) && $u['email'] && !crm_is_placeholder((string)$u['email'])) {
+        [$subj, $lead] = $p['mail'] ?? ["Счёт № {num} от " . lk_date($date) . " — ООО «ИНФОТЕХ»", "Оплатите, пожалуйста, до {due} включительно. В назначении платежа укажите номер счёта — так оплата зачтётся автоматически."];
+        $rep = ['{num}' => $num, '{due}' => lk_date($due)];
+        send_mail_attach($u['email'], strtr($subj, $rep),
+            "Здравствуйте" . ($u['name'] ? ", {$u['name']}" : '') . "!\n\nВо вложении счёт № $num от " . lk_date($date) . " на " . money_rub($total) . " " . strtr($lead, $rep)
+            . "\n\nСчёт и история оплат — в личном кабинете: " . LK_SITE . '/lk/orders/?n=' . urlencode($onum) . "\n\nООО «ИНФОТЕХ», " . crm_company()['phone'] . ", info@pbk.spb.ru",
             LK_FILES . '/' . $stored['file'], "Счёт $num.pdf", 'application/pdf');
-    bill_log((int)$s['id'], 'invoice', "счёт $num на " . money_rub($amount) . " за " . bill_month_name($ym) . ", срок " . lk_date($due), $by);
+    }
     return $inv;
 }
 
@@ -153,7 +180,7 @@ function bill_eff_due(array $inv, array $s): string {
 /* просроченные счета на дату */
 function bill_overdue(array $s, ?string $today = null): array {
     $today ??= bill_today();
-    return array_values(array_filter(bill_open_invoices((int)$s['id']), fn($i) => bill_eff_due($i, $s) < $today));
+    return array_values(array_filter(bill_open_invoices((int)$s['id']), fn($i) => !$i['legacy'] && bill_eff_due($i, $s) < $today));
 }
 function bill_debt(int $sid): float {
     $sum = 0.0;
@@ -166,7 +193,7 @@ function bill_can_promise(array $s, ?string $today = null): ?array {
     $today ??= bill_today();
     if ($s['access'] === 'closed' && $s['vm'] === 'off') return null;
     foreach (bill_open_invoices((int)$s['id']) as $i) {
-        if ($s['promised_for'] === $i['number']) continue;
+        if ($s['promised_for'] === $i['number'] || $i['legacy']) continue;
         if ($today >= wc_prev_workday($i['due']) && bill_days($i['due'], $today) <= 7) return $i;
     }
     return null;
@@ -285,6 +312,7 @@ function bill_run(?string $today = null, bool $dry = false): array {
         // 2) напоминания по неоплаченным счетам
         [$email, $uname] = [$s['email'], $s['uname']];
         foreach (bill_open_invoices((int)$s['id']) as $i) {
+            if ($i['legacy']) continue;   // счета из 1С — без автонапоминаний
             $due = bill_eff_due($i, $s); $left = money_rub((float)$i['amount'] - (float)$i['paid_amount']);
             $hello = "Здравствуйте" . ($uname ? ", $uname" : '') . "!\n\n";
             $tail = "\n\nСчёт: " . LK_SITE . '/lk/orders/?n=' . urlencode($i['order_number']) . "\nООО «ИНФОТЕХ», 8 (812) 928-68-84";
@@ -385,10 +413,10 @@ function bill_words(float $sum): string {
 }
 
 /* ---------- PDF счёта ---------- */
-function bill_pdf_store(array $inv, array $o, array $s, ?array $c, array $u): array {
+function inv_pdf_store(array $inv, array $o, ?array $c, array $u, array $b): array {
     require_once APP_DIR . '/vendor/tfpdf/font/unifont/ttfonts.php';
     require_once APP_DIR . '/vendor/tfpdf/tfpdf.php';
-    $b = bill_bank();
+    $co = crm_company();
     $pdf = new tFPDF('P', 'mm', 'A4');
     $pdf->SetTitle('Счёт ' . $inv['number'], true); $pdf->SetAuthor('ООО «ИНФОТЕХ»', true);
     $pdf->AddFont('Inter', '', 'Inter-Regular.ttf', true); $pdf->AddFont('Inter', 'B', 'Inter-SemiBold.ttf', true);
@@ -413,46 +441,58 @@ function bill_pdf_store(array $inv, array $o, array $s, ?array $c, array $u): ar
     $pdf->SetXY(15, $y + 34); $pdf->SetFont('Inter', 'B', 14);
     $pdf->Cell(0, 7, "Счёт на оплату № {$inv['number']} от " . bill_date_words($inv['issued']), 0, 1);
     $pdf->SetLineWidth(0.6); $pdf->Line(15, $pdf->GetY() + 1, 195, $pdf->GetY() + 1); $pdf->SetLineWidth(0.2); $pdf->Ln(4);
-    $row = function (string $k, string $v) use ($pdf) { $pdf->SetFont('Inter', '', 9); $pdf->Cell(28, 5, $k); $pdf->SetFont('Inter', 'B', 9); $pdf->MultiCell(152, 5, $v); $pdf->Ln(1.5); };
-    $addr = trim((string)cfg('company_address'));
-    $row('Поставщик:', 'ООО «ИНФОТЕХ», ИНН 7811653356, КПП 470601001' . ($addr ? ", $addr" : '') . ', тел. 8 (812) 928-68-84');
-    $buyer = $c ? trim(($c['name'] ?: '') . ($c['inn'] ? ', ИНН ' . $c['inn'] : '') . ($c['kpp'] ? ', КПП ' . $c['kpp'] : '') . ($c['address'] ? ', ' . $c['address'] : ''), ', ')
+    $row = function (string $k, string $k2, string $v) use ($pdf) {
+        $y0 = $pdf->GetY(); $pdf->SetFont('Inter', '', 9); $pdf->Cell(30, 5, $k); $pdf->SetFont('Inter', 'B', 9); $pdf->MultiCell(150, 5, $v);
+        $y1 = $pdf->GetY(); if ($k2 !== '') { $pdf->SetXY(15, $y0 + 4.5); $pdf->SetFont('Inter', '', 7.5); $pdf->Cell(30, 4, $k2); $pdf->SetY(max($y1, $y0 + 9)); }
+        $pdf->Ln(1.5);
+    };
+    $row('Поставщик', '(исполнитель):', 'ООО «ИНФОТЕХ», ИНН 7811653356, КПП 470601001' . ($co['address'] ? ', ' . $co['address'] : '') . ($co['phone'] ? ', тел.: ' . $co['phone'] : ''));
+    $buyer = $c ? trim(($c['full_name'] ?: $c['name'] ?: '') . ($c['inn'] ? ', ИНН ' . $c['inn'] : '') . ($c['kpp'] ? ', КПП ' . $c['kpp'] : '') . ($c['address'] ? ', ' . $c['address'] : ''), ', ')
                 : trim((string)($u['name'] ?: $u['email']));
-    $row('Покупатель:', $buyer);
-    if ($s['contract']) $row('Основание:', (string)$s['contract']);
+    $row('Покупатель', '(заказчик):', $buyer);
+    if (trim((string)$inv['basis']) !== '') $row('Основание:', '', (string)$inv['basis']);
     // таблица
-    $pdf->Ln(1); $w = [10, 104, 16, 12, 19, 19];
-    $pdf->SetFont('Inter', 'B', 8.5);
-    foreach (['№', 'Товары (работы, услуги)', 'Кол-во', 'Ед.', 'Цена', 'Сумма'] as $i => $t) $pdf->Cell($w[$i], 7, $t, 1, 0, 'C');
+    $items = lk_items($o); $hasCode = (bool)array_filter($items, fn($i) => trim((string)($i['code'] ?? '')) !== '' && !preg_match('/^(SVC|INF)-/', (string)$i['code']));
+    $w = $hasCode ? [9, 88, 22, 14, 11, 18, 18] : [9, 110, 0, 14, 11, 18, 18];
+    $pdf->Ln(1); $pdf->SetFont('Inter', 'B', 8.5);
+    foreach (['№', 'Товары (работы, услуги)', 'Код', 'Кол-во', 'Ед.', 'Цена', 'Сумма'] as $i => $t) if ($w[$i]) $pdf->Cell($w[$i], 7, $t, 1, 0, 'C');
     $pdf->Ln(); $pdf->SetFont('Inter', '', 8.5);
-    $items = lk_items($o); $total = 0.0;
+    $total = 0.0;
     foreach ($items as $k => $it) {
         $total += (float)$it['sum'];
         $x = $pdf->GetX(); $yy = $pdf->GetY();
         $pdf->SetXY($x + $w[0], $yy); $pdf->MultiCell($w[1], 4.5, (string)$it['name'], 0, 'L');
         $h = max(7, $pdf->GetY() - $yy + 1);
+        if ($yy + $h > 280) { $pdf->AddPage(); $yy = $pdf->GetY(); $pdf->SetXY($x + $w[0], $yy); $pdf->MultiCell($w[1], 4.5, (string)$it['name'], 0, 'L'); }
         $pdf->SetXY($x, $yy); $pdf->Cell($w[0], $h, (string)($k + 1), 1, 0, 'C'); $pdf->Rect($x + $w[0], $yy, $w[1], $h);
         $pdf->SetXY($x + $w[0] + $w[1], $yy);
-        $pdf->Cell($w[2], $h, (string)$it['qty'], 1, 0, 'C'); $pdf->Cell($w[3], $h, 'мес.', 1, 0, 'C');
-        $pdf->Cell($w[4], $h, number_format((float)$it['price'], 2, ',', ' '), 1, 0, 'R'); $pdf->Cell($w[5], $h, number_format((float)$it['sum'], 2, ',', ' '), 1, 1, 'R');
+        if ($w[2]) $pdf->Cell($w[2], $h, mb_substr((string)($it['code'] ?? ''), 0, 14), 1, 0, 'C');
+        $q = (float)$it['qty']; $pdf->Cell($w[3], $h, rtrim(rtrim(number_format($q, 3, ',', ' '), '0'), ','), 1, 0, 'C'); $pdf->Cell($w[4], $h, (string)($it['unit'] ?? 'шт'), 1, 0, 'C');
+        $pdf->Cell($w[5], $h, number_format((float)$it['price'], 2, ',', ' '), 1, 0, 'R'); $pdf->Cell($w[6], $h, number_format((float)$it['sum'], 2, ',', ' '), 1, 1, 'R');
     }
     $pdf->Ln(1); $pdf->SetFont('Inter', 'B', 9);
-    $pdf->Cell(161, 5.5, 'Итого:', 0, 0, 'R'); $pdf->Cell(19, 5.5, number_format($total, 2, ',', ' '), 0, 1, 'R');
-    $pdf->Cell(161, 5.5, 'Без НДС (УСН)', 0, 0, 'R'); $pdf->Cell(19, 5.5, '—', 0, 1, 'R');
-    $pdf->Cell(161, 5.5, 'Всего к оплате:', 0, 0, 'R'); $pdf->Cell(19, 5.5, number_format($total, 2, ',', ' '), 0, 1, 'R');
+    $pdf->Cell(160, 5.5, 'Итого:', 0, 0, 'R'); $pdf->Cell(20, 5.5, number_format($total, 2, ',', ' '), 0, 1, 'R');
+    $pdf->Cell(160, 5.5, 'Без налога (НДС):', 0, 0, 'R'); $pdf->Cell(20, 5.5, '—', 0, 1, 'R');
+    $pdf->Cell(160, 5.5, 'Всего к оплате:', 0, 0, 'R'); $pdf->Cell(20, 5.5, number_format($total, 2, ',', ' '), 0, 1, 'R');
     $pdf->Ln(2); $pdf->SetFont('Inter', '', 9);
     $pdf->Cell(0, 5, 'Всего наименований ' . count($items) . ', на сумму ' . number_format($total, 2, ',', ' ') . ' руб.', 0, 1);
     $pdf->SetFont('Inter', 'B', 9); $pdf->MultiCell(0, 5, bill_words($total)); $pdf->Ln(2);
     $pdf->SetFont('Inter', '', 8.5);
-    $pdf->MultiCell(0, 4.5, 'Оплатить не позднее ' . lk_date($inv['due']) . '. При неоплате в срок доступ к серверу приостанавливается до поступления оплаты; '
-        . 'стоимость за период приостановки не пересчитывается. НДС не облагается: ООО «ИНФОТЕХ» применяет упрощённую систему налогообложения.');
+    $note = 'Оплатить не позднее ' . lk_date($inv['due']) . '. ';
+    if (!empty($inv['service_id']) && !empty($inv['period'])) $note .= 'При неоплате в срок доступ к серверу приостанавливается до поступления оплаты; стоимость за период приостановки не пересчитывается. ';
+    $note .= 'НДС не облагается: ООО «ИНФОТЕХ» применяет упрощённую систему налогообложения.' . ($co['note'] ? "\n" . $co['note'] : '');
+    $pdf->MultiCell(0, 4.5, $note);
     $pdf->SetLineWidth(0.6); $pdf->Line(15, $pdf->GetY() + 3, 195, $pdf->GetY() + 3); $pdf->SetLineWidth(0.2); $pdf->Ln(10);
-    $dir = trim((string)cfg('director_name'));
-    $pdf->SetFont('Inter', 'B', 9); $pdf->Cell(30, 5, 'Руководитель'); $pdf->SetFont('Inter', '', 9);
-    $pdf->Cell(60, 5, '', 'B'); $pdf->Cell(5, 5, ''); $pdf->Cell(60, 5, $dir, 'B', 1, 'C');
+    $sign = function (string $role, string $who) use ($pdf) {
+        $pdf->SetFont('Inter', 'B', 9); $pdf->Cell(30, 5, $role); $pdf->SetFont('Inter', '', 9);
+        $pdf->Cell(60, 5, '', 'B'); $pdf->Cell(5, 5, ''); $pdf->Cell(60, 5, $who, 'B', 1, 'C');
+        $pdf->SetFont('Inter', '', 6.5); $pdf->Cell(30, 3, ''); $pdf->Cell(60, 3, 'подпись', 0, 0, 'C'); $pdf->Cell(5, 3, ''); $pdf->Cell(60, 3, 'расшифровка подписи', 0, 1, 'C'); $pdf->Ln(5);
+    };
+    $sign('Руководитель', $co['director']);
+    if ($co['accountant']) $sign('Бухгалтер', $co['accountant']);
     $dirpath = LK_FILES . '/' . $o['id'];
     if (!is_dir($dirpath)) mkdir($dirpath, 0750, true);
-    $name = 'invoice-' . preg_replace('/\D/', '', $inv['number']) . '-' . bin2hex(random_bytes(3)) . '.pdf';
+    $name = 'invoice-' . preg_replace('/[^\w-]/u', '', str_replace('ИТ', 'IT', $inv['number'])) . '-' . bin2hex(random_bytes(3)) . '.pdf';
     $pdf->Output('F', "$dirpath/$name");
     return ['file' => $o['id'] . '/' . $name, 'mime' => 'application/pdf', 'size' => (int)filesize("$dirpath/$name")];
 }

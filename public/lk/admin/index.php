@@ -35,12 +35,13 @@ require APP_DIR . '/lk_admin_services.php';
 require APP_DIR . '/lk_admin_payments.php';
 require APP_DIR . '/lk_admin_billing.php';
 require APP_DIR . '/lk_admin_staff.php';
+require APP_DIR . '/lk_admin_crm.php';
 
 function mgr_page(string $title, string $body): never {
     $me = staff_me(); $unread = $me ? chat_unread_total($me) : 0;
     $bd = '';
     foreach (staff_birthdays(0) as $b) $bd .= '<div class="flash ok">Сегодня день рождения у ' . h($b['s']['name'] ?: $b['s']['login']) . ($b['s']['position'] ? ' (' . h($b['s']['position']) . ')' : '') . ' — поздравьте в <a href="/lk/admin/?chat=general">общем чате</a>!</div>';
-    $nav = '<a href="/lk/admin/?chat=general">Чат <em class="unread" id="chatBadge"' . ($unread ? '' : ' hidden') . '>' . $unread . '</em></a><a href="/lk/admin/">Заказы</a><a href="/lk/admin/?billing=1">Аренда серверов</a><a href="/lk/admin/?payments=1">Оплаты Сбербанк</a><a href="/lk/admin/?services=1">Услуги клиентов</a><a href="/lk/admin/?tickets=1">Обращения</a><a href="/lk/admin/?leads=1">Заявки с сайта</a><a href="/lk/admin/?users=1">Клиенты</a><a href="/admin/?supply=1">Каталог оборудования</a><a href="/lk/admin/?staff=all">Сотрудники</a><a href="/lk/admin/?me=1">Мой профиль</a><a href="/lk/admin/?logout=1">Выйти</a>';
+    $nav = '<a href="/lk/admin/?chat=general">Чат <em class="unread" id="chatBadge"' . ($unread ? '' : ' hidden') . '>' . $unread . '</em></a><a href="/lk/admin/?clients=1">Клиенты</a><a href="/lk/admin/?invoices=1">Счета</a><a href="/lk/admin/">Заказы</a><a href="/lk/admin/?billing=1">Аренда серверов</a><a href="/lk/admin/?payments=1">Оплаты Сбербанк</a><a href="/lk/admin/?services=1">Услуги клиентов</a><a href="/lk/admin/?tickets=1">Обращения</a><a href="/lk/admin/?leads=1">Заявки с сайта</a><a href="/admin/?supply=1">Каталог оборудования</a><a href="/lk/admin/?staff=all">Сотрудники</a><a href="/lk/admin/?me=1">Мой профиль</a>' . (staff_is_admin() ? '<a href="/lk/admin/?settings=1">Настройки</a>' : '') . '<a href="/lk/admin/?logout=1">Выйти</a>';
     echo '<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">'
         . '<title>' . h($title) . ' — менеджер ИНФОТЕХ</title><link rel="stylesheet" href="/assets/lk.css?v=' . @filemtime(PUBLIC_DIR . '/assets/lk.css') . '"></head><body class="lk mgr">'
         . '<aside class="side"><a class="brand" href="/lk/admin/"><img src="/logo-light-s.png" alt="ИНФОТЕХ" height="34"></a><div class="who"><b>' . h($me ? ($me['name'] ?: $me['login']) : 'Кабинет менеджера') . '</b>' . ($me && $me['position'] ? '<br><small>' . h($me['position']) . '</small>' : '') . '</div><nav>' . $nav . '</nav></aside>'
@@ -59,8 +60,13 @@ function mail_client(array $o, string $subject, string $text, ?array $att = null
 
 /* ---------- действия по заказу ---------- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!$_POST && !$_FILES && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {   // превышен post_max_size — PHP выбросил всё
+        lk_flash('Слишком большой объём за один раз (больше ' . ini_get('post_max_size') . '). Загрузите файлы частями.', 'bad');
+        lk_redirect($_SERVER['HTTP_REFERER'] ?? '/lk/admin/');
+    }
     lk_check_csrf();
     if (in_array($_POST['act'] ?? '', STAFF_ACTS, true)) adm_staff_post();
+    if (in_array($_POST['act'] ?? '', CRM_ACTS, true)) adm_crm_post();
     if (in_array($_POST['act'] ?? '', BILL_ADMIN_ACTS, true)) adm_billing_post();
     if (in_array($_POST['act'] ?? '', ['pay_import', 'pay_bind', 'pay_ignore'], true)) adm_payments_post();
     if (in_array($_POST['act'] ?? '', ['svc_save', 'svc_hours', 'svc_hours_del', 'svc_renew', 'tk_reply', 'tk_status'], true)) adm_services_post();
@@ -120,6 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 if (isset($_GET['as'])) { $_SESSION['as'] = (int)$_GET['as']; lk_redirect('/lk/'); }
 adm_staff_get();      // чат, сотрудники, мой профиль
+adm_crm_get();        // клиенты, счета, загрузка из 1С, настройки
 adm_services_get();   // услуги, обращения (выходит сам, если страница его)
 adm_payments_get();
 adm_billing_get();

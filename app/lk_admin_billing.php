@@ -109,7 +109,7 @@ function adm_billing_get(): void {
         if ($v['billed'] || $v['received']) $rev .= '<tr><td>' . h(bill_month_name($ym)) . '</td><td>' . money_rub($v['billed']) . '<div class="paybar"><i style="width:' . round($v['billed'] / $max * 100) . '%"></i></div></td><td>' . money_rub($v['received']) . '<div class="paybar"><i style="width:' . round($v['received'] / $max * 100) . '%"></i></div></td></tr>';
     $servers = bill_servers();
     $cfgWarn = '';
-    try { bill_bank(); } catch (RuntimeException $e) { $cfgWarn .= '<p class="badge bad">' . h($e->getMessage()) . '</p> '; }
+    try { crm_bank(); } catch (RuntimeException $e) { $cfgWarn .= '<p class="badge bad">' . h($e->getMessage()) . '</p> '; }
     if (!$auto) $cfgWarn .= '<p class="muted">MikroTik не подключён (app/config.php → mikrotik): доступ закрывается и открывается вручную, CRM ведёт списки и письма.</p>';
     mgr_page('Аренда серверов', '<h1>Аренда серверов</h1>' . $cfgWarn
         . '<p class="muted">Серверов в аренде: ' . count($servers) . '. Счета на следующий месяц выставляются сами ' . lk_date(bill_issue_day(substr(bill_today(), 0, 7))) . ', срок оплаты — до ' . lk_date(bill_due(bill_next_ym(substr(bill_today(), 0, 7)))) . ' (5-й рабочий день).</p>'

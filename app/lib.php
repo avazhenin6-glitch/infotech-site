@@ -116,7 +116,7 @@ function json_out(array $data, int $code = 200): never {
 /* ---------------- Почта ---------------- */
 function send_mail(string $to, string $subject, string $text): bool {
     $mode = cfg('mail_transport');
-    if ($mode === 'none' || !$to) return false;
+    if ($mode === 'none' || !$to || str_ends_with($to, '.invalid')) return false;   // .invalid — клиент без e-mail
     $from = cfg('mail_from'); $fromName = cfg('mail_from_name');
     $encSubj = '=?UTF-8?B?' . base64_encode($subject) . '?=';
     $encFrom = '=?UTF-8?B?' . base64_encode($fromName) . '?= <' . $from . '>';

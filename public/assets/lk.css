@@ -143,3 +143,8 @@ em.unread[hidden]{display:none}
 .send .clip input{display:none}
 .send textarea{width:auto;min-width:0}
 .send .btn{flex:0 0 auto}
+/* форма счёта */
+.tbl.items input{margin:0;width:100%}
+.tbl.items td.s{white-space:nowrap;text-align:right}
+.tbl.items .del{font-size:20px;color:var(--muted)}
+.tbl.items input{padding-left:8px;padding-right:8px}
