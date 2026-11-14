@@ -41,13 +41,15 @@ function adm_services_post(): void {
         $paid = preg_match('/^\d{4}-\d\d-\d\d$/', (string)($_POST['paid_until'] ?? '')) ? $_POST['paid_until'] : null;
         $vals = [$u['id'], (int)($_POST['company'] ?? 0) ?: null, $kind, clean($_POST['title'] ?? '', 150) ?: ($tt['name'] ?? SVC_KINDS[$kind]), $tariff, $months, $price,
                  json_encode($cfg, JSON_UNESCAPED_UNICODE), $hours, in_array($_POST['vpn'] ?? '', ['Активен', 'Отключён'], true) ? $_POST['vpn'] : 'Активен',
-                 isset(SVC_STATUS[$_POST['status'] ?? '']) ? $_POST['status'] : 'Активен', $paid, clean($_POST['note'] ?? '', 2000), $now];
+                 isset(SVC_STATUS[$_POST['status'] ?? '']) ? $_POST['status'] : 'Активен', $paid, clean($_POST['note'] ?? '', 2000), $now,
+                 preg_replace('/[^\w.@-]/u', '', (string)($_POST['vpn_login'] ?? '')) ?: null, clean($_POST['contract'] ?? '', 200) ?: null,
+                 preg_match('/^\d{4}-\d\d-\d\d$/', (string)($_POST['started'] ?? '')) ? $_POST['started'] : date('Y-m-d')];
         if ($id) {
-            $pdo->prepare('UPDATE services SET user_id=?, company_id=?, kind=?, title=?, tariff_code=?, period_months=?, price=?, config_json=?, hours_month=?, vpn_status=?, status=?, paid_until=?, note=?, updated_at=? WHERE id=?')
+            $pdo->prepare('UPDATE services SET user_id=?, company_id=?, kind=?, title=?, tariff_code=?, period_months=?, price=?, config_json=?, hours_month=?, vpn_status=?, status=?, paid_until=?, note=?, updated_at=?, vpn_login=?, contract=?, started=? WHERE id=?')
                 ->execute([...$vals, $id]);
         } else {
-            $pdo->prepare('INSERT INTO services (user_id, company_id, kind, title, tariff_code, period_months, price, config_json, hours_month, vpn_status, status, paid_until, note, updated_at, created_at, started) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
-                ->execute([...$vals, $now, date('Y-m-d')]);
+            $pdo->prepare('INSERT INTO services (user_id, company_id, kind, title, tariff_code, period_months, price, config_json, hours_month, vpn_status, status, paid_until, note, updated_at, vpn_login, contract, started, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+                ->execute([...$vals, $now]);
             $id = (int)$pdo->lastInsertId();
         }
         lk_flash('Услуга сохранена'); lk_redirect('/lk/admin/?svc=' . $id);
@@ -149,10 +151,14 @@ function adm_services_get(): void {
             . '<div class="row"><label>vCPU<input name="cpu" value="' . h((string)($c['cpu'] ?? '')) . '"></label><label>RAM, ГБ<input name="ram" value="' . h((string)($c['ram'] ?? '')) . '"></label><label>Диск, ГБ<input name="disk" value="' . h((string)($c['disk'] ?? '')) . '"></label>'
             . '<label>Тип диска<input name="disk_type" value="' . h((string)($c['disk_type'] ?? '')) . '" placeholder="SSD / NVMe"></label><label>Пользователей<input name="users" value="' . h((string)($c['users'] ?? '')) . '"></label></div>'
             . '<div class="row"><label>Канал OpenVPN' . $sel('vpn', ['Активен' => 'Активен', 'Отключён' => 'Отключён'], $s['vpn_status'] ?? 'Активен') . '</label><label>Статус' . $sel('status', array_combine(array_keys(SVC_STATUS), array_keys(SVC_STATUS)), $s['status'] ?? 'Активен') . '</label>'
+            . '<label>VPN-учётка на MikroTik (аренда)<input name="vpn_login" value="' . $v('vpn_login') . '" placeholder="имя PPP secret"></label>'
+            . '<label>Дата подключения<input type="date" name="started" value="' . h((string)($s['started'] ?? date('Y-m-d'))) . '"></label></div>'
+            . '<div class="row"><label>Основание для счёта (договор)<input name="contract" value="' . $v('contract') . '" placeholder="Договор № 12 от 01.03.2025"></label>'
             . '<label>Часов в месяц (сопровождение)<input name="hours" value="' . h((string)(float)($s['hours_month'] ?? 0) ?: '') . '" placeholder="Из тарифа"></label></div>'
             . '<label>Заметка для клиента<textarea name="note" rows="2">' . $v('note') . '</textarea></label><button class="btn">' . ($s ? 'Сохранить' : 'Подключить') . '</button></form>';
         $extra = '';
-        if ($s) {
+        if ($s && $s['kind'] === 'server') $extra .= adm_billing_svc_card($s);
+        elseif ($s) {
             $open = svc_open_renewal($s);
             $extra .= '<div class="card cut"><h2>Продление</h2>' . ($open ? '<p>Открыт заказ <a href="?n=' . urlencode($open['number']) . '">' . h($open['number']) . '</a> — ' . lk_badge($open['status']) . '</p>'
                 : '<form method="post">' . lk_csrf_field() . '<input type="hidden" name="sid" value="' . $s['id'] . '"><button class="btn ghost" name="act" value="svc_renew">Создать заказ на продление</button></form>')

@@ -1,10 +1,11 @@
 <?php
-/* Ежедневно (таймер lk-daily): напоминания о продлении услуг за 7/3/1 день, заказ на продление, просрочка; истечение резерва счетов.
-   php app/cli-lk-daily.php [--dry]   — --dry: только показать, что было бы сделано */
+/* Ежедневно (таймер lk-daily): аренда серверов — календарный биллинг (billing.php); сопровождение/ИТС — напоминания за 7/3/1 день, заказ на продление, просрочка; истечение резерва счетов.
+   php app/cli-lk-daily.php [--dry] [--date=2026-11-26]   — --dry: только показать, что было бы сделано; --date: прогон на дату */
 declare(strict_types=1);
 if (PHP_SAPI !== 'cli') exit(1);
 require __DIR__ . '/lk.php';
 $dry = in_array('--dry', $argv, true);
+foreach ($argv as $a) if (preg_match('/^--date=(\d{4}-\d\d-\d\d)$/', $a, $m)) putenv("PBK_TODAY=$m[1]");   // для проверки: прогон «как будто сегодня»
 $pdo = svc_db(); $now = date('Y-m-d H:i:s'); $log = [];
 $sent = function (int $sid, string $until, int $days) use ($pdo): bool {
     $st = $pdo->prepare('SELECT 1 FROM service_reminders WHERE service_id=? AND paid_until=? AND days=?'); $st->execute([$sid, $until, $days]);
@@ -15,7 +16,7 @@ $mark = function (int $sid, string $until, int $days) use ($pdo, $now, $dry): vo
 };
 $plural = fn(int $n) => $n % 10 === 1 && $n % 100 !== 11 ? 'день' : ($n % 10 >= 2 && $n % 10 <= 4 && ($n % 100 < 10 || $n % 100 >= 20) ? 'дня' : 'дней');
 
-foreach ($pdo->query("SELECT s.*, u.email, u.name AS uname FROM services s JOIN users u ON u.id=s.user_id WHERE s.status IN ('Активен','Обслуживание') AND s.paid_until IS NOT NULL")->fetchAll() as $s) {
+foreach ($pdo->query("SELECT s.*, u.email, u.name AS uname FROM services s JOIN users u ON u.id=s.user_id WHERE s.status IN ('Активен','Обслуживание') AND s.paid_until IS NOT NULL AND s.kind<>'server'")->fetchAll() as $s) {
     $until = svc_until($s); $d = svc_days_left($s); $name = $s['title'] ?: SVC_KINDS[$s['kind']];
     if ($d === null) continue;
     if ($d < 0) {   // просрочено — один раз сообщаем менеджеру
@@ -41,6 +42,9 @@ foreach ($pdo->query("SELECT s.*, u.email, u.name AS uname FROM services s JOIN 
     if (!$dry) send_mail($s['email'], "Продление: {$name} — оплачено до " . lk_date($until), $text);
     foreach ([7, 3, 1] as $t) if ($t >= $thr) $mark((int)$s['id'], $until, $t);
 }
+
+/* аренда серверов: счета 26-го, напоминания, закрытие доступа, ВМ, удаление (app/billing.php) */
+foreach (bill_run(bill_today(), $dry) as $l) $log[] = $l;
 
 /* резерв по счетам на оборудование: истёк — статус и письмо клиенту */
 foreach ($pdo->query("SELECT * FROM orders WHERE type='order' AND status='Счёт выставлен' AND has_hw=1 AND valid_until < '$now'")->fetchAll() as $o) {

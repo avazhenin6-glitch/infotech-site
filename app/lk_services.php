@@ -26,6 +26,7 @@ function svc_db(): PDO {
     foreach (['service_id' => 'INTEGER', 'renew_months' => 'INTEGER'] as $c => $t)
         if (!in_array($c, $cols, true)) $pdo->exec("ALTER TABLE orders ADD COLUMN $c $t");
     $done = true;
+    bill_db();   // колонки биллинга аренды (access, vm, vpn_login…)
     return $pdo;
 }
 
@@ -102,6 +103,7 @@ function svc_create_renewal(array $s, string $by = 'client'): array {
 /* оплата заказа на продление → сдвигаем оплаченный период */
 function svc_apply_payment(array $o): ?string {
     if (empty($o['service_id'])) return null;
+    if (!empty($o['bill_period'])) return bill_on_paid($o);   // календарный биллинг аренды (app/billing.php)
     $s = svc_get((int)$o['service_id']);
     if (!$s) return null;
     $months = (int)($o['renew_months'] ?: $s['period_months'] ?: 1);
@@ -113,12 +115,18 @@ function svc_apply_payment(array $o): ?string {
 }
 /* «обещанный платёж»: +3 дня, один раз за оплаченный период, когда до конца ≤ 3 дней или период уже закончился (не более 7 дней назад) */
 function svc_can_promise(array $s): bool {
+    if ($s['kind'] === 'server') return (bool)bill_can_promise($s);
     if ($s['kind'] !== 'server' || !$s['paid_until'] || $s['promised_for'] === $s['paid_until']) return false;
     $d = (int)floor((strtotime($s['paid_until'] . ' 23:59:59') - time()) / 86400);
     return $d <= 3 && $d >= -7;
 }
 function svc_badge(array $s): string {
     $st = $s['status'];
+    if ($s['kind'] === 'server') {
+        if (($s['access'] ?? 'open') === 'closed') return '<span class="badge bad">' . (($s['vm'] ?? 'on') === 'off' ? 'Сервер выключен' : 'Доступ приостановлен') . '</span>';
+        if (bill_overdue($s)) return '<span class="badge bad">Оплата просрочена</span>';
+        if (bill_open_invoices((int)$s['id'])) return '<span class="badge wait">Ожидает оплаты</span>';
+    }
     $d = svc_days_left($s);
     if ($st === 'Активен' && $d !== null && $d < 0) return '<span class="badge bad">Оплата просрочена</span>';
     if ($st === 'Активен' && $d !== null && $d <= 7) return '<span class="badge wait">Скоро продление</span>';

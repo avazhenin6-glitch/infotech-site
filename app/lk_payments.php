@@ -39,6 +39,11 @@ function pay_find_by_purpose(string $purpose): array {
             $st = $pdo->prepare("SELECT * FROM orders WHERE type='order' AND number=?"); $st->execute(["ИТ-$m[1]-$m[2]"]);
             if ($o = $st->fetch()) { $found[$o['id']] = $o; $how[$o['id']] = 'номер заказа'; }
         }
+    if (preg_match_all('/(?:ИТ|IT|ИT)\s*-\s*(\d{6})(?!\d|\s*-\s*\d)/ui', $purpose, $mm, PREG_SET_ORDER))   // счёт CRM: ИТ-000145
+        foreach ($mm as $m) {
+            $st = $pdo->prepare("SELECT * FROM orders WHERE type='order' AND invoice_number=?"); $st->execute(["ИТ-$m[1]"]);
+            foreach ($st->fetchAll() as $o) { $found[$o['id']] = $o; $how[$o['id']] = 'номер счёта'; }
+        }
     if (preg_match_all('/сч[её]т[ауе]?\s*(?:на\s+оплату\s*)?(?:№|N|No|#)?\s*([A-ZА-Я]{0,4}-?\d{1,10}(?:\/\d+)?)(?:\s*от\s*(\d\d\.\d\d\.\d{2,4}))?/ui', $purpose, $mm, PREG_SET_ORDER))
         foreach ($mm as $m) {
             $num = ltrim($m[1], '0') ?: $m[1];

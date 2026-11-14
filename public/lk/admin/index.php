@@ -25,9 +25,10 @@ if (empty($_SESSION['mgr'])) {
 unset($_SESSION['as']);   // в кабинете менеджера — не «от имени клиента»
 require APP_DIR . '/lk_admin_services.php';
 require APP_DIR . '/lk_admin_payments.php';
+require APP_DIR . '/lk_admin_billing.php';
 
 function mgr_page(string $title, string $body): never {
-    $nav = '<a href="/lk/admin/">Заказы</a><a href="/lk/admin/?payments=1">Оплаты Сбербанк</a><a href="/lk/admin/?services=1">Услуги клиентов</a><a href="/lk/admin/?tickets=1">Обращения</a><a href="/lk/admin/?leads=1">Заявки с сайта</a><a href="/lk/admin/?users=1">Клиенты</a><a href="/admin/?supply=1">Каталог оборудования</a><a href="/lk/admin/?logout=1">Выйти</a>';
+    $nav = '<a href="/lk/admin/">Заказы</a><a href="/lk/admin/?billing=1">Аренда серверов</a><a href="/lk/admin/?payments=1">Оплаты Сбербанк</a><a href="/lk/admin/?services=1">Услуги клиентов</a><a href="/lk/admin/?tickets=1">Обращения</a><a href="/lk/admin/?leads=1">Заявки с сайта</a><a href="/lk/admin/?users=1">Клиенты</a><a href="/admin/?supply=1">Каталог оборудования</a><a href="/lk/admin/?logout=1">Выйти</a>';
     echo '<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">'
         . '<title>' . h($title) . ' — менеджер ИНФОТЕХ</title><link rel="stylesheet" href="/assets/lk.css?v=' . @filemtime(PUBLIC_DIR . '/assets/lk.css') . '"></head><body class="lk mgr">'
         . '<aside class="side"><a class="brand" href="/lk/admin/"><img src="/logo-light-s.png" alt="ИНФОТЕХ" height="34"></a><div class="who"><b>Кабинет менеджера</b></div><nav>' . $nav . '</nav></aside>'
@@ -44,6 +45,7 @@ function mail_client(array $o, string $subject, string $text, ?array $att = null
 /* ---------- действия по заказу ---------- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     lk_check_csrf();
+    if (in_array($_POST['act'] ?? '', BILL_ADMIN_ACTS, true)) adm_billing_post();
     if (in_array($_POST['act'] ?? '', ['pay_import', 'pay_bind', 'pay_ignore'], true)) adm_payments_post();
     if (in_array($_POST['act'] ?? '', ['svc_save', 'svc_hours', 'svc_hours_del', 'svc_renew', 'tk_reply', 'tk_status'], true)) adm_services_post();
     $st = $pdo->prepare('SELECT * FROM orders WHERE id=?'); $st->execute([(int)($_POST['id'] ?? 0)]);
@@ -103,6 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 if (isset($_GET['as'])) { $_SESSION['as'] = (int)$_GET['as']; lk_redirect('/lk/'); }
 adm_services_get();   // услуги, обращения (выходит сам, если страница его)
 adm_payments_get();
+adm_billing_get();
 
 /* ---------- карточка заказа ---------- */
 if (isset($_GET['n'])) {

@@ -141,9 +141,7 @@ function lk_order_for_user(string $number, int $uid): ?array {
 }
 /* +N рабочих дней (сб/вс пропускаем; праздники РФ не учитываются) — до конца дня */
 function lk_add_workdays(string $from, int $n): string {
-    $d = new DateTime($from);
-    while ($n > 0) { $d->modify('+1 day'); if ((int)$d->format('N') < 6) $n--; }
-    return $d->format('Y-m-d') . ' 23:59:59';
+    return wc_add_workdays($from, $n) . ' 23:59:59';   // с учётом праздников РФ (app/workcal.php)
 }
 /* резерв по оборудованию: неоплаченный счёт старше 3 рабочих дней — «Срок резерва истёк» */
 function lk_apply_reserve(array $o): array {
@@ -323,3 +321,6 @@ function lk_dadata_inn(string $inn): ?array {
 }
 require_once __DIR__ . '/lk_services.php';
 require_once __DIR__ . '/lk_payments.php';
+require_once __DIR__ . '/workcal.php';
+require_once __DIR__ . '/mikrotik.php';
+require_once __DIR__ . '/billing.php';

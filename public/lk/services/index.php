@@ -12,11 +12,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = $s['title'] ?: SVC_KINDS[$s['kind']];
     switch ($_POST['act'] ?? '') {
         case 'renew':
+            if ($s['kind'] === 'server') break;   // аренда — счета приходят сами, за 5 дней до конца месяца
             $o = svc_create_renewal($s);
             lk_flash('Заказ на продление создан. Менеджер выставит счёт — он появится в заказе и придёт на почту.');
             lk_redirect('/lk/orders/?n=' . urlencode($o['number']));
         case 'promise':
             if (!svc_can_promise($s)) { lk_flash('Обещанный платёж сейчас недоступен', 'bad'); break; }
+            if ($s['kind'] === 'server') {
+                $inv = bill_can_promise($s);
+                $until = date('Y-m-d', strtotime(max($inv['due'], date('Y-m-d')) . ' +3 day'));
+                $pdo->prepare("UPDATE services SET promised_until=?, promised_for=?, updated_at=? WHERE id=?")->execute([$until, $inv['number'], date('Y-m-d H:i:s'), $s['id']]);
+                bill_log((int)$s['id'], 'promise', "обещанный платёж по счёту {$inv['number']} до " . lk_date($until), 'клиент');
+                lk_notify_manager("Обещанный платёж: $name", "Клиент {$u['email']} взял обещанный платёж по счёту {$inv['number']}: доступ не закрываем до " . lk_date($until) . '.');
+                lk_flash('Обещанный платёж подключён: доступ к серверу сохраняется до ' . lk_date($until) . ' включительно. Оплатите счёт № ' . $inv['number'] . ' до этой даты.');
+                break;
+            }
             $until = date('Y-m-d', strtotime(max($s['paid_until'], date('Y-m-d')) . ' +3 day'));
             $pdo->prepare("UPDATE services SET promised_until=?, promised_for=?, updated_at=? WHERE id=?")->execute([$until, $s['paid_until'], date('Y-m-d H:i:s'), $s['id']]);
             svc_create_renewal($s);
@@ -59,10 +69,20 @@ foreach ($svcs as $s) {
         . '<span>Период оплаты</span><b>' . (int)$s['period_months'] . ' мес.' . ($s['price'] ? ' · ' . money_rub((float)$s['price']) : '') . '</b></div>'
         . ($until ? '<p class="muted">' . $dleft . '</p>' : '');
     if ($s['kind'] === 'server') {
+        $openInv = bill_open_invoices((int)$s['id']);
+        $acts = '';
+        foreach ($openInv as $i) $acts .= '<a class="btn" href="/lk/orders/?n=' . urlencode($i['order_number']) . '">Счёт № ' . h($i['number']) . ' — ' . money_rub((float)$i['amount'] - (float)$i['paid_amount']) . '</a>';
+        $next = bill_issue_day(date('Y-m'));
+        if ($next < date('Y-m-d')) $next = bill_issue_day(bill_next_ym(date('Y-m')));
+        $due = $openInv ? bill_eff_due($openInv[0], $s) : null;
+        $body = '<div class="kv"><span>Оплачено до</span><b>' . lk_date($s['paid_until']) . '</b><span>Абонентская плата</span><b>' . money_rub(bill_monthly_price($s)) . ' в месяц</b>'
+            . ($openInv ? '<span>К оплате</span><b>' . money_rub(bill_debt((int)$s['id'])) . ' до ' . lk_date($due) . '</b>' : '<span>Следующий счёт</span><b>' . lk_date($next) . '</b>') . '</div>'
+            . ($s['access'] === 'closed' ? '<p class="neg">Доступ приостановлен из-за неоплаты. После оплаты он откроется в течение рабочего дня.' . (($pd = bill_purge_date($s)) ? ' Сервер выключен; данные будут удалены ' . lk_date($pd) . ', если оплата не поступит.' : '') . '</p>'
+               : ($due && $due < date('Y-m-d') ? '<p class="neg">Срок оплаты истёк — доступ может быть приостановлен в любой момент.</p>' : ''));
         $vpnOk = $s['vpn_status'] === 'Активен';
         $body = '<div class="kv"><span>Конфигурация</span><b>' . h(svc_cfg_text($s)) . '</b><span>Канал OpenVPN</span><b><i class="dot ' . ($vpnOk ? 'ok' : 'bad') . '"></i>' . h($s['vpn_status']) . '</b>'
             . '<span>Статус сервера</span><b>' . h($s['status']) . '</b></div>' . $body;
-        if (svc_can_promise($s)) $acts .= '<form method="post" class="inline" onsubmit="return confirm(\'Подключить обещанный платёж на 3 дня? Доступен один раз за период.\')">' . $f . '<button class="btn ghost" name="act" value="promise">Обещанный платёж (на 3 дня)</button></form>';
+        if (svc_can_promise($s)) $acts .= '<form method="post" class="inline" onsubmit="return confirm(\'Подключить обещанный платёж на 3 дня? Доступен один раз на счёт.\')">' . $f . '<button class="btn ghost" name="act" value="promise">Обещанный платёж (на 3 дня)</button></form>';
         $acts .= '<button class="btn ghost" type="button" onclick="this.nextElementSibling.hidden=!this.nextElementSibling.hidden">Запросить масштабирование</button>'
             . '<form method="post" class="scale" hidden>' . $f . '<input type="hidden" name="act" value="scale"><label>Что изменить<textarea name="want" rows="3" placeholder="Например: +8 ГБ RAM, +200 ГБ диска, ещё 3 пользователя" required></textarea></label><button class="btn">Отправить запрос</button></form>';
     }
